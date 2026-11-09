@@ -18,7 +18,7 @@ plugin/allinone/
 ```
 
 ## 组件来源（升级=改一处）
-- **下载类**（prometheus / kafka,es,redis,mysqld,mongodb exporter / node_exporter）：Dockerfile 内联 wget，版本由顶部 `ARG` 管。
+- **Prometheus 和 exporter**：从对应上游镜像复制二进制，版本由根目录 Dockerfile 顶部 `ARG` 管。
 - **上游镜像类**（grafana / loki / tempo / alloy / mongo / ksm）：`COPY --from` 官方镜像，版本由对应 `FROM` tag 管。
 - **gateway**：前端(dist)+后端(ops-server) 由根目录 Dockerfile 在构建阶段编译；nginx 等运行时资产在 `gateway/`。
 - **mongo**：mongod(4.4) 依赖 libssl1.1/libcrypto1.1，从官方 mongo 镜像抠入（debian12 无），已验证可起。

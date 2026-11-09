@@ -36,7 +36,7 @@ PUSH=0 ./build.sh                    # 只 build 不推；IMAGE=... 可覆盖 ta
 
 > **构建前置坑**：
 > - 需要 Go 1.23.3 + Node/yarn 在本机；
-> - 根目录 Dockerfile 会下载 Prometheus 和 exporter。云构建可启用海外构建或海外源加速。
+> - 根目录 Dockerfile 从上游容器镜像提取 Prometheus 和 exporter。云构建可启用海外构建或海外源加速。
 > - 首次构建较慢（拉 6 个上游镜像 + 下载组件）。
 
 ---
@@ -152,4 +152,4 @@ python3 test/mdis_regression.py --base http://<host>:9080 --subpath /mdis --toke
 | 告警页报错/无数据 | `ops-mongo` 没起或 `ENV_OPS_MONGODB_URI` 不对；`ENV_ALERT_CRYPTO_KEY` 必须 32 字节 |
 | 慢查询页空 | 「数据源」页没有勾了「诊断」用途的 MongoDB 实例（懒连接，不影响启动） |
 | 资源监控 iframe 空白 | `ops-prometheus`/`ops-grafana` 没起，或这俩 service 被删了 |
-| 构建 wget 超时 | 检查构建机访问 GitHub Releases 的网络，ACR 可启用海外构建或海外源加速 |
+| 拉取上游镜像超时 | 检查构建机访问 Docker Hub 和 Kubernetes 官方镜像仓库的网络，ACR 可启用海外构建或海外源加速 |

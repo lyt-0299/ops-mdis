@@ -33,46 +33,19 @@ FROM docker.io/grafana/tempo:2.9.0              AS src-tempo
 FROM docker.io/grafana/alloy:v1.11.3            AS src-alloy
 FROM docker.io/library/mongo:4.4.28             AS src-mongo
 FROM registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.1 AS src-ksm
+FROM docker.io/prom/prometheus:v${PROM_VER} AS src-prometheus
+FROM docker.io/prom/node-exporter:v${NODE_EXPORTER_VER} AS src-node-exporter
+FROM docker.io/danielqsj/kafka-exporter:v${KAFKA_EXPORTER_VER} AS src-kafka-exporter
+FROM docker.io/prometheuscommunity/elasticsearch-exporter:v${ES_EXPORTER_VER} AS src-es-exporter
+FROM docker.io/oliver006/redis_exporter:v${REDIS_EXPORTER_VER} AS src-redis-exporter
+FROM docker.io/prom/mysqld-exporter:v${MYSQL_EXPORTER_VER} AS src-mysql-exporter
+FROM docker.io/percona/mongodb_exporter:${MONGODB_EXPORTER_VER} AS src-mongo-exporter
 
 # Debian 基础镜像先借用 Go 镜像中的 CA 证书访问官方 HTTPS 软件源。
 # 保留 Debian 原有的 Signed-By、软件源套件与签名校验。
 FROM docker.io/library/debian:12.10 AS debian-base
 COPY --from=go-toolchain /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN sed -i 's|^URIs: http://deb.debian.org/|URIs: https://deb.debian.org/|' /etc/apt/sources.list.d/debian.sources
-
-# ---------------- 下载阶段：prometheus / 各 exporter / node_exporter ----------------
-FROM debian-base AS src-download
-ARG PROM_VER NODE_EXPORTER_VER KAFKA_EXPORTER_VER ES_EXPORTER_VER REDIS_EXPORTER_VER MYSQL_EXPORTER_VER MONGODB_EXPORTER_VER
-RUN apt-get -o Acquire::Retries=3 -o APT::Update::Error-Mode=any update \
-    && apt-get install -y wget ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /out/prometheus/server \
-    && wget -q https://github.com/prometheus/prometheus/releases/download/v${PROM_VER}/prometheus-${PROM_VER}.linux-amd64.tar.gz \
-    && tar -zxf prometheus-${PROM_VER}.linux-amd64.tar.gz --strip-components=1 -C /out/prometheus/server \
-    && rm prometheus-${PROM_VER}.linux-amd64.tar.gz
-RUN mkdir -p /out/agent/node_exporter/logs \
-    && wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VER}/node_exporter-${NODE_EXPORTER_VER}.linux-amd64.tar.gz \
-    && tar -xzf node_exporter-${NODE_EXPORTER_VER}.linux-amd64.tar.gz \
-    && mv node_exporter-${NODE_EXPORTER_VER}.linux-amd64/node_exporter /out/agent/node_exporter/ \
-    && rm -rf node_exporter-${NODE_EXPORTER_VER}.linux-amd64*
-RUN mkdir -p /out/agent/kafka_exporter/logs /out/agent/elasticsearch_exporter/logs \
-             /out/agent/redis_exporter/logs /out/agent/mysqld_exporter/logs /out/agent/mongodb_exporter/logs \
-    && wget -q https://github.com/danielqsj/kafka_exporter/releases/download/v${KAFKA_EXPORTER_VER}/kafka_exporter-${KAFKA_EXPORTER_VER}.linux-amd64.tar.gz \
-    && tar -xzf kafka_exporter-${KAFKA_EXPORTER_VER}.linux-amd64.tar.gz \
-    && mv kafka_exporter-${KAFKA_EXPORTER_VER}.linux-amd64/kafka_exporter /out/agent/kafka_exporter/ \
-    && wget -q https://github.com/prometheus-community/elasticsearch_exporter/releases/download/v${ES_EXPORTER_VER}/elasticsearch_exporter-${ES_EXPORTER_VER}.linux-amd64.tar.gz \
-    && tar -xzf elasticsearch_exporter-${ES_EXPORTER_VER}.linux-amd64.tar.gz \
-    && mv elasticsearch_exporter-${ES_EXPORTER_VER}.linux-amd64/elasticsearch_exporter /out/agent/elasticsearch_exporter/ \
-    && wget -q https://github.com/oliver006/redis_exporter/releases/download/v${REDIS_EXPORTER_VER}/redis_exporter-v${REDIS_EXPORTER_VER}.linux-amd64.tar.gz \
-    && tar -xzf redis_exporter-v${REDIS_EXPORTER_VER}.linux-amd64.tar.gz \
-    && mv redis_exporter-v${REDIS_EXPORTER_VER}.linux-amd64/redis_exporter /out/agent/redis_exporter/ \
-    && wget -q https://github.com/prometheus/mysqld_exporter/releases/download/v${MYSQL_EXPORTER_VER}/mysqld_exporter-${MYSQL_EXPORTER_VER}.linux-amd64.tar.gz \
-    && tar -xzf mysqld_exporter-${MYSQL_EXPORTER_VER}.linux-amd64.tar.gz \
-    && mv mysqld_exporter-${MYSQL_EXPORTER_VER}.linux-amd64/mysqld_exporter /out/agent/mysqld_exporter/ \
-    && wget -q https://github.com/percona/mongodb_exporter/releases/download/v${MONGODB_EXPORTER_VER}/mongodb_exporter-${MONGODB_EXPORTER_VER}.linux-amd64.tar.gz \
-    && tar -xzf mongodb_exporter-${MONGODB_EXPORTER_VER}.linux-amd64.tar.gz \
-    && mv mongodb_exporter-${MONGODB_EXPORTER_VER}.linux-amd64/mongodb_exporter /out/agent/mongodb_exporter/ \
-    && rm -rf *_exporter-*
 
 # ==================== 最终镜像 ====================
 FROM debian-base
@@ -82,10 +55,15 @@ RUN printf '%s\n' 'en_US.UTF-8 UTF-8' 'zh_CN.UTF-8 UTF-8' > /etc/locale.gen \
     && apt-get install -y vim iproute2 dnsutils procps locales ca-certificates gettext jq curl libcurl4 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# ---- 下载类二进制 ----
-COPY --from=src-download /out/prometheus/ /usr/local/prometheus/
-COPY --from=src-download /out/agent/      /usr/local/agent/
-# ---- 官方二进制 ----
+# ---- 从上游镜像提取二进制，保留各 ROLE 脚本使用的路径 ----
+COPY --from=src-prometheus     /bin/prometheus /bin/promtool /LICENSE /NOTICE /usr/local/prometheus/server/
+COPY --from=src-node-exporter /bin/node_exporter          /usr/local/agent/node_exporter/node_exporter
+COPY --from=src-kafka-exporter /bin/kafka_exporter        /usr/local/agent/kafka_exporter/kafka_exporter
+COPY --from=src-es-exporter    /bin/elasticsearch_exporter /usr/local/agent/elasticsearch_exporter/elasticsearch_exporter
+COPY --from=src-redis-exporter /redis_exporter            /usr/local/agent/redis_exporter/redis_exporter
+COPY --from=src-mysql-exporter /bin/mysqld_exporter       /usr/local/agent/mysqld_exporter/mysqld_exporter
+COPY --from=src-mongo-exporter /mongodb_exporter          /usr/local/agent/mongodb_exporter/mongodb_exporter
+# ---- 其余官方组件 ----
 COPY --from=src-loki  /usr/bin/loki  /usr/local/bin/loki
 COPY --from=src-tempo /tempo         /usr/local/bin/tempo
 COPY --from=src-alloy /bin/alloy     /usr/local/bin/alloy
@@ -118,7 +96,10 @@ COPY --from=build-backend /out/ops-server       /usr/local/ops/ops-server
 # ---- 全部角色脚本（本目录 roles/，10 个一次性拷入）----
 COPY plugin/allinone/roles/ /roles/
 
-RUN mkdir -p /data/logs/weblogs/ /data/mdis/prometheus /data/mdis/grafana /data/mdis/loki /data/mdis/tempo /data/mdis/mongo /data/mdis/alloy
+RUN mkdir -p /data/logs/weblogs/ /data/mdis/prometheus /data/mdis/grafana /data/mdis/loki /data/mdis/tempo /data/mdis/mongo /data/mdis/alloy \
+    && for exporter in node_exporter kafka_exporter elasticsearch_exporter redis_exporter mysqld_exporter mongodb_exporter; do \
+        mkdir -p "/usr/local/agent/${exporter}/logs" || exit 1; \
+    done
 
 # ---- 统一入口：按 ROLE 分发 ----
 COPY plugin/allinone/entrypoint.sh /entrypoint.sh
