@@ -1,4 +1,7 @@
 var translations = {
+  "在 Grafana 中打开": "Open in Grafana",
+  "打开 Grafana 看板失败": "Failed to open the Grafana dashboard",
+  "无法打开 Grafana 看板，请检查 Grafana 连通性和编辑权限": "Unable to open the Grafana dashboard. Check connectivity and Editor permissions.",
   "自定义监控": "Custom Monitoring",
   "新建监控面板": "New Panel",
   "编辑监控面板": "Edit Panel",

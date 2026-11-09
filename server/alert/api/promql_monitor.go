@@ -33,18 +33,25 @@ type monitorPanel struct {
 func listMonitorPanels(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	cur, err := database.Config().Find(ctx, bson.M{"kind": monitorPanelKind}, options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}))
+	panels, err := loadMonitorPanels(ctx)
 	if err != nil {
 		httputil.WriteErr(w, http.StatusInternalServerError, "common_query_failed")
 		return
 	}
+	httputil.WriteJSON(w, http.StatusOK, panels)
+}
+
+func loadMonitorPanels(ctx context.Context) ([]monitorPanel, error) {
+	cur, err := database.Config().Find(ctx, bson.M{"kind": monitorPanelKind}, options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
 	defer cur.Close(ctx)
 	panels := []monitorPanel{}
 	if err := cur.All(ctx, &panels); err != nil {
-		httputil.WriteErr(w, http.StatusInternalServerError, "common_read_failed")
-		return
+		return nil, err
 	}
-	httputil.WriteJSON(w, http.StatusOK, panels)
+	return panels, nil
 }
 
 func saveMonitorPanel(w http.ResponseWriter, r *http.Request) {

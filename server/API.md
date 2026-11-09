@@ -403,7 +403,8 @@
 | `GET /api/alert/promql/jobs` | 在内置 Prometheus 最近一小时的数据中发现采集任务 |
 | `GET /api/alert/promql/metrics?job=mongodb&search=collstats` | 按采集任务和名称片段查找指标 |
 | `POST /api/alert/promql/query` | 以 `{"promql":"mongodb_up","rangeSeconds":3600}` 查询。范围为 0 或省略时执行即时查询，历史查询最长 7 天 |
-| `GET /api/alert/monitor-panels` | 读取平台共享面板 |
+| `POST /api/alert/monitor-dashboard/open` | 打开 Grafana 原生自定义看板。看板缺失时从旧面板配置初始化，已有看板及其编辑结果直接保留。返回同源看板路径 `url` |
+| `GET /api/alert/monitor-panels` | 读取旧版平台共享面板 |
 | `POST /api/alert/monitor-panels`、`PUT /api/alert/monitor-panels/{id}` | 保存面板，字段为 `name`、`promql` 和 `view`，显示方式为 `chart` 或 `table` |
 | `DELETE /api/alert/monitor-panels/{id}` | 删除面板 |
 

@@ -128,6 +128,7 @@ export const keyText = (key) => {
     alert_scrape_source_disabled: _l("这条数据源已停用，不参与采集"),
     alert_scrape_purpose_off: _l("这条数据源没有勾选「看图」用途，不参与指标采集"),
     monitor_collectors_invalid: _l("扩展指标采集配置无效"),
+    monitor_grafana_unavailable: _l("无法打开 Grafana 看板，请检查 Grafana 连通性和编辑权限"),
     monitor_panel_not_found: _l("监控面板不存在"),
     log_loki_query_failed: _l("查询日志失败"),
     log_unsupported_type: _l("不支持的日志类型"),

@@ -53,6 +53,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/alert/datasources/test-query", PreviewPromQL)
 
 	// 自定义监控使用内置 Prometheus，面板配置与告警规则独立。
+	mux.HandleFunc("POST /api/alert/monitor-dashboard/open", openMonitorDashboard)
 	mux.HandleFunc("GET /api/alert/monitor-panels", listMonitorPanels)
 	mux.HandleFunc("POST /api/alert/monitor-panels", saveMonitorPanel)
 	mux.HandleFunc("PUT /api/alert/monitor-panels/{id}", saveMonitorPanel)

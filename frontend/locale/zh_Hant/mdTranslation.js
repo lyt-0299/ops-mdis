@@ -1,4 +1,7 @@
 var translations = {
+  "在 Grafana 中打开": "在 Grafana 中開啟",
+  "打开 Grafana 看板失败": "開啟 Grafana 儀表板失敗",
+  "无法打开 Grafana 看板，请检查 Grafana 连通性和编辑权限": "無法開啟 Grafana 儀表板，請檢查 Grafana 連線和編輯權限",
   "自定义监控": "自訂監控",
   "新建监控面板": "新增監控面板",
   "编辑监控面板": "編輯監控面板",

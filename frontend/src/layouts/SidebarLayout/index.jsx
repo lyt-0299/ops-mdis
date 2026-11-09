@@ -22,6 +22,7 @@ const IFRAME_ROUTE_KEYS = new Set([
   'kafka',
   'elasticsearch',
   'k8s',
+  'monitor-panels',
   'custom',
   'containerConsole',
   'serviceLogs',

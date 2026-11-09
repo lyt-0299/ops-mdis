@@ -620,12 +620,5 @@ export const updateCustomPage = (id, payload) => put(`/alert/custom-pages/${id}`
 /** Delete a custom page. */
 export const deleteCustomPage = (id) => del(`/alert/custom-pages/${id}`);
 
-// ── 自定义监控面板 ───────────────────────────────────────────────────────
-export const listMonitorPanels = (signal) => get('/alert/monitor-panels', {}, { signal });
-export const saveMonitorPanel = (id, payload) => id
-  ? put(`/alert/monitor-panels/${id}`, payload)
-  : post('/alert/monitor-panels', payload);
-export const deleteMonitorPanel = (id) => del(`/alert/monitor-panels/${id}`);
-export const runMonitorQuery = (payload, signal) => post('/alert/promql/query', payload, { signal });
-export const listMonitorMetrics = (params, signal) => get('/alert/promql/metrics', params, { signal });
-export const listMonitorJobs = (signal) => get('/alert/promql/jobs', {}, { signal });
+// ── Grafana 自定义监控看板 ──────────────────────────────────────────
+export const openMonitorDashboard = (signal) => post('/alert/monitor-dashboard/open', {}, { signal });

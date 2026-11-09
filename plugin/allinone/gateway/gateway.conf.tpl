@@ -1,3 +1,9 @@
+# 资源页继续使用嵌入样式。自定义看板保留 Grafana 的布局和编辑控件。
+map $uri $mdis_grafana_style {
+    default '<link rel="stylesheet" type="text/css" href="${OPS_BASE_PATH}/prometheus/grafana/custem.css">';
+    ~^${OPS_BASE_PATH}/prometheus/grafana/d/mdis-custom-monitoring(?:/|$) "";
+}
+
 server {
     listen ${OPS_GATEWAY_PORT};
 
@@ -106,12 +112,13 @@ server {
     location ${OPS_BASE_PATH}/prometheus/grafana/ {
         auth_request /_auth;
         proxy_http_version 1.1;
-        proxy_set_header Host $proxy_host;
+        # 保留浏览器访问的主机名，Grafana 用它校验原生编辑请求的 Origin。
+        proxy_set_header Host $host;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         set $upstream_grafana "${ENV_PROMETHEUS_GRAFANA}";
         proxy_pass $upstream_grafana;
-        sub_filter '</head>' '<link rel="stylesheet" type="text/css" href="${OPS_BASE_PATH}/prometheus/grafana/custem.css"></head>';
+        sub_filter '</head>' '$mdis_grafana_style</head>';
         sub_filter_once on;
     }
 
