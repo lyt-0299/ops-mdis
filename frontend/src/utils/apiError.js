@@ -92,6 +92,7 @@ export const keyText = (key) => {
     alert_instance_has_rules: _l("该实例下存在监控规则，请先删除关联的监控规则"),
     alert_webhook_referenced: _l("该通知渠道仍被监控规则引用，请先解除关联"),
     alert_mongo_alert_purpose_required: _l("该 MongoDB 实例未启用「告警」用途，无法配置告警(单节点无副本集监控项)"),
+    alert_mongo_getlog_unavailable: _l("无法读取 MongoDB 运行日志，请检查 getLog 命令权限"),
     alert_mongo_standalone_no_replset: _l("单节点，无副本集监控项；实例存活告警请用「端口」监控"),
     alert_kafka_instance_has_tasks: _l("该实例下还有监控任务，请先删除相关任务"),
     alert_rule_checking: _l("规则正在检查中，请稍后重试"),

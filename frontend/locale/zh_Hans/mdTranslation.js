@@ -1,4 +1,12 @@
 var translations = {
+  "运行日志读取正常": "运行日志读取正常",
+  "部分 MongoDB 节点日志读取失败": "部分 MongoDB 节点日志读取失败",
+  "日志采集失败，请检查 MongoDB 权限和 Loki 连通性": "日志采集失败，请检查 MongoDB 权限和 Loki 连通性",
+  "等待日志采集状态": "等待日志采集状态",
+  "运行日志": "运行日志",
+  "查看 MongoDB 日志": "查看 MongoDB 日志",
+  "运行日志通过 MongoDB 读取近期内存日志并写入 Loki，完整审计请采集日志文件。": "运行日志通过 MongoDB 读取近期内存日志并写入 Loki，完整审计请采集日志文件。",
+  "无法读取 MongoDB 运行日志，请检查 getLog 命令权限": "无法读取 MongoDB 运行日志，请检查 getLog 命令权限",
   "在 Grafana 中打开": "在 Grafana 中打开",
   "打开 Grafana 看板失败": "打开 Grafana 看板失败",
   "无法打开 Grafana 看板，请检查 Grafana 连通性和编辑权限": "无法打开 Grafana 看板，请检查 Grafana 连通性和编辑权限",

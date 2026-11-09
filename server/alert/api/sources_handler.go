@@ -325,12 +325,14 @@ func SourcesHealth(w http.ResponseWriter, r *http.Request) {
 	// at.IsZero() 早退之前算好：只配了主机、没配任何中间件时 agent 一次都不会上报，
 	// 早退会把主机状态一起吞掉。
 	hostSources := hostHealth(ctx)
+	mongoLogs := service.MongoLogStatuses(ctx)
 
 	if at.IsZero() {
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{
 			"reported":  len(hostSources) > 0,
 			"mode":      mode,
 			"sources":   hostSources,
+			"mongoLogs": mongoLogs,
 			"unmatched": []any{},
 		})
 		return
@@ -379,6 +381,7 @@ func SourcesHealth(w http.ResponseWriter, r *http.Request) {
 		"reportedAt": at.Format(time.RFC3339),
 		"staleSec":   int(time.Since(at).Seconds()),
 		"sources":    sources,
+		"mongoLogs":  mongoLogs,
 		"unmatched":  unmatched,
 	})
 }

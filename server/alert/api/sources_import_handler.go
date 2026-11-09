@@ -376,7 +376,7 @@ func stampInstance(id, kindField *string, kind string, purposes *[]string, creat
 		*id = bson.NewObjectID().Hex()
 	}
 	*kindField = kind
-	if len(*purposes) == 0 {
+	if *purposes == nil || (kind != model.KindMongoInstance && len(*purposes) == 0) {
 		*purposes = []string{"metrics", "alert"}
 	}
 	*createdAt, *updatedAt = now, now

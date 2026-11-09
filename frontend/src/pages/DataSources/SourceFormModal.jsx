@@ -69,7 +69,7 @@ const DEFAULT_PURPOSES = ['metrics', 'alert'];
 
 // 每种类型支持的用途列表（探测+三态显示范围）
 const TYPE_PURPOSES = {
-  mongodb:       ['metrics', 'alert', 'diagnose'],
+  mongodb:       ['metrics', 'alert', 'diagnose', 'logs'],
   mysql:         ['metrics', 'alert'],
   kafka:         ['metrics', 'alert'],
   redis:         ['metrics'],
@@ -82,6 +82,7 @@ const PURPOSE_LABEL = {
   metrics:  _l('看图'),
   alert:    _l('告警'),
   diagnose: _l('慢查询诊断'),
+  logs: _l('运行日志'),
 };
 
 const SASL_MECHANISMS = [
@@ -114,7 +115,12 @@ const PurposeSection = ({ type, probing, probeResult, checked, onChange }) => {
   const connectFailed = probeResult && !probeResult.connect?.ok;
 
   return (
-    <Form.Item label={_l('用途')}>
+    <Form.Item
+      label={_l('用途')}
+      extra={type === 'mongodb' && checked?.logs
+        ? _l('运行日志通过 MongoDB 读取近期内存日志并写入 Loki，完整审计请采集日志文件。')
+        : undefined}
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {connectFailed && (
           <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--color-error, #ff4d4f)' }}>
@@ -160,6 +166,7 @@ const PurposeSection = ({ type, probing, probeResult, checked, onChange }) => {
               {statusTag}
               <Switch
                 size="small"
+                aria-label={PURPOSE_LABEL[p] || p}
                 disabled={switchDisabled}
                 checked={!!checked?.[p]}
                 onChange={(v) => onChange(p, v)}
@@ -1003,7 +1010,7 @@ const SourceFormModal = ({ open, type, record, onClose, onSaved, existingSources
       const values = isEdit ? getEditValues(type, record) : getEmptyValues(type);
       form.setFieldsValue(values);
       // 初始化 checkedPurposes（编辑时从 record 读，新建时用默认）
-      const initPurposes = (isEdit && Array.isArray(record?.purposes) && record.purposes.length)
+      const initPurposes = (isEdit && Array.isArray(record?.purposes) && (type === 'mongodb' || record.purposes.length))
         ? record.purposes
         : (getEmptyValues(type).purposes || []);
       const initChecked = {};

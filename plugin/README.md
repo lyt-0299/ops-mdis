@@ -248,6 +248,10 @@ MDIS 1.4.0 起内置**自研告警子系统**（取代旧的 Grafana 自带告�
 
 `purposes` 取值：`metrics`（纳入指标采集/看图）、`alert`（纳入告警）、`diagnose`（仅 MongoDB：慢查询诊断目标）。
 
+MongoDB 数据源可同时开启「运行日志」（`logs`）。gateway 用同一条数据源的 URI、认证和 TLS 执行 `getLog: "global"`，副本集按可发现的成员读取，使用 `ENV_LOKI_URL` 写入平台现有 Loki。账号需要集群资源上的 `getLog` 权限。点击数据源行的「查看 MongoDB 日志」可在 Grafana Explore 查看，日志流标签为 `log_source="mongodb"`、`source_id`、`mongo_source` 和 `mongo_node`。
+
+此方式读取 MongoDB 的近期内存缓冲区，首轮只回读缓冲区中最近 15 分钟的结构化日志。日志量大或连接中断时，缓冲区覆盖的记录无法补回。完整历史和审计文件使用现有 Alloy 文件或容器日志采集。
+
 改完**即时生效**：ops-agent 每 30s 从 ops-server 的 `/api/sd/sources` 对账，
 按需拉起/回收 exporter；ops-prometheus 的 file_sd 同样由注册中心下发，热加载。
 改数据源不用重启任何容器。

@@ -1,4 +1,12 @@
 var translations = {
+  "运行日志读取正常": "Server log reads are healthy",
+  "部分 MongoDB 节点日志读取失败": "Log reads failed on some MongoDB members",
+  "日志采集失败，请检查 MongoDB 权限和 Loki 连通性": "Log collection failed. Check MongoDB permissions and Loki connectivity.",
+  "等待日志采集状态": "Waiting for log collection status",
+  "运行日志": "Server Logs",
+  "查看 MongoDB 日志": "View MongoDB Logs",
+  "运行日志通过 MongoDB 读取近期内存日志并写入 Loki，完整审计请采集日志文件。": "MDIS reads the recent MongoDB log buffer into Loki. Collect log files for a complete audit trail.",
+  "无法读取 MongoDB 运行日志，请检查 getLog 命令权限": "Unable to read MongoDB server logs. Check permission for the getLog command.",
   "在 Grafana 中打开": "Open in Grafana",
   "打开 Grafana 看板失败": "Failed to open the Grafana dashboard",
   "无法打开 Grafana 看板，请检查 Grafana 连通性和编辑权限": "Unable to open the Grafana dashboard. Check connectivity and Editor permissions.",

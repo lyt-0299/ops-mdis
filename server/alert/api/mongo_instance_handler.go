@@ -86,7 +86,7 @@ func CreateMongoInstance(w http.ResponseWriter, r *http.Request) {
 	// 用途兜底：请求体没带 purposes 时按前端新建表单的默认值（看图 + 告警）处理。
 	// 没有兜底时 API 建出来的数据源 purposes 为空，服务发现按 purposes 含 "metrics" 过滤，
 	// 于是「建成功了、UI 里也看得到，但永远不采集」——比 enabled=false 更隐蔽。
-	if len(req.Purposes) == 0 {
+	if req.Purposes == nil {
 		req.Purposes = []string{"metrics", "alert"}
 	}
 	if _, err := database.Config().InsertOne(ctx, req); err != nil {
@@ -156,7 +156,7 @@ func UpdateMongoInstance(w http.ResponseWriter, r *http.Request) {
 	if req.MetricCollection != nil {
 		setDoc["metricCollection"] = req.MetricCollection
 	}
-	if len(req.Purposes) > 0 {
+	if req.Purposes != nil {
 		setDoc["purposes"] = req.Purposes
 	}
 	if _, err := database.Config().UpdateOne(ctx, filter, bson.M{"$set": setDoc}); err != nil {

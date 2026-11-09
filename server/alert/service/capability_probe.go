@@ -60,7 +60,7 @@ func mongoDiagnoseDB(uri string) string {
 	return db
 }
 
-// ProbeMongoCapabilities 一次性连接 + 对三用途（metrics/alert/diagnose）各做真实消费的只读 dry-run。
+// ProbeMongoCapabilities 一次性连接并探测 MongoDB 数据源各用途需要的命令权限。
 // 返回 (connectErr, caps)；connectErr != nil 时 caps 为 nil。
 func ProbeMongoCapabilities(inst *model.MongoInstance) (error, map[string]CapResult) {
 	client, err := buildMongoClient(inst) // 已做 Connect + Ping
@@ -99,6 +99,12 @@ func ProbeMongoCapabilities(inst *model.MongoInstance) (error, map[string]CapRes
 		caps["diagnose"] = CapResult{Available: false, Reason: diagnoseReasonFromErr(findErr)}
 	} else {
 		caps["diagnose"] = CapResult{Available: true}
+	}
+
+	if err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "getLog", Value: "global"}}).Err(); err != nil {
+		caps[model.MongoLogPurpose] = CapResult{ReasonKey: "alert_mongo_getlog_unavailable"}
+	} else {
+		caps[model.MongoLogPurpose] = CapResult{Available: true}
 	}
 
 	return nil, caps

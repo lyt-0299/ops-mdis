@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// MongoLogPurpose enables periodic collection of the server log buffer.
+const MongoLogPurpose = "logs"
+
 // MongoInstance MongoDB 实例配置模型
 type MongoInstance struct {
 	ID               string            `bson:"_id,omitempty" json:"id"`
@@ -19,7 +22,7 @@ type MongoInstance struct {
 	Enabled          bool              `bson:"enabled"       json:"enabled"`
 	Builtin          bool              `bson:"builtin"       json:"builtin"`
 	MetricCollection *MetricCollection `bson:"metricCollection,omitempty" json:"metricCollection,omitempty"`
-	Purposes         []string          `bson:"purposes"      json:"purposes"` // 取值 "metrics" / "alert"
+	Purposes         []string          `bson:"purposes"      json:"purposes"` // metrics / alert / diagnose / logs
 	CreatedAt        time.Time         `bson:"createdAt"     json:"createdAt"`
 	UpdatedAt        time.Time         `bson:"updatedAt"     json:"updatedAt"`
 }

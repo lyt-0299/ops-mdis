@@ -107,8 +107,7 @@ func normalizeMongoURI(uri, authDB string) string {
 	return u.String()
 }
 
-// buildMongoClient 根据 MongoInstance 配置构建 mongo.Client
-func buildMongoClient(inst *model.MongoInstance) (*mongo.Client, error) {
+func mongoClientOptions(inst *model.MongoInstance) *options.ClientOptions {
 	opts := options.Client().ApplyURI(normalizeMongoURI(inst.URI, inst.AuthDB))
 
 	// 如果独立字段提供了凭据（且 URI 中未指定），则覆盖
@@ -132,7 +131,12 @@ func buildMongoClient(inst *model.MongoInstance) (*mongo.Client, error) {
 	// 连接池与超时配置
 	opts.SetConnectTimeout(10 * time.Second)
 	opts.SetServerSelectionTimeout(10 * time.Second)
+	return opts
+}
 
+// buildMongoClient 根据 MongoInstance 配置构建 mongo.Client
+func buildMongoClient(inst *model.MongoInstance) (*mongo.Client, error) {
+	opts := mongoClientOptions(inst)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -282,44 +286,35 @@ func (c *MongoPoolClient) GetOplogWindows(ctx context.Context) ([]OplogWindowRes
 	return results, nil
 }
 
-func (c *MongoPoolClient) getSingleNodeOplogWindow(ctx context.Context, memberName string) (float64, error) {
-	cacheKey := fmt.Sprintf("%s:%s", c.instance.ID, memberName)
-
-	// 尝试复用缓存的直连客户端
+func (c *MongoPoolClient) directMemberClient(member string) (*mongo.Client, error) {
+	key := c.instance.ID + ":" + member
 	directPoolLock.Lock()
-	tmpClient, cached := directClientPool[cacheKey]
-	directPoolLock.Unlock()
-
-	if !cached {
-		opts := options.Client().ApplyURI(c.instance.URI)
-		if c.instance.Username != "" && c.instance.Password != "" {
-			credential := options.Credential{
-				Username:   c.instance.Username,
-				Password:   c.instance.Password,
-				AuthSource: c.instance.AuthDB,
-			}
-			opts.SetAuth(credential)
-		}
-		if c.instance.TLS {
-			opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: c.instance.SkipSSL})
-		}
-
-		opts.SetHosts([]string{memberName})
-		opts.SetDirect(true)
-		opts.SetReplicaSet("") // 禁用 ReplicaSet 发现，直接连接单个节点
-		opts.SetConnectTimeout(5 * time.Second)
-		opts.SetServerSelectionTimeout(5 * time.Second)
-
-		var err error
-		tmpClient, err = mongo.Connect(opts)
-		if err != nil {
-			return 0, fmt.Errorf("创建直连客户端失败: %w", err)
-		}
-
-		directPoolLock.Lock()
-		directClientPool[cacheKey] = tmpClient
-		directPoolLock.Unlock()
+	defer directPoolLock.Unlock()
+	if client := directClientPool[key]; client != nil {
+		return client, nil
 	}
+
+	opts := mongoClientOptions(c.instance).
+		SetHosts([]string{member}).
+		SetDirect(true).
+		SetReplicaSet("").
+		SetLoadBalanced(false).
+		SetConnectTimeout(5 * time.Second).
+		SetServerSelectionTimeout(5 * time.Second)
+	client, err := mongo.Connect(opts)
+	if err != nil {
+		return nil, err
+	}
+	directClientPool[key] = client
+	return client, nil
+}
+
+func (c *MongoPoolClient) getSingleNodeOplogWindow(ctx context.Context, memberName string) (float64, error) {
+	tmpClient, err := c.directMemberClient(memberName)
+	if err != nil {
+		return 0, fmt.Errorf("创建直连客户端失败: %w", err)
+	}
+	cacheKey := c.instance.ID + ":" + memberName
 
 	localDB := tmpClient.Database("local")
 	oplogColl := localDB.Collection("oplog.rs")
@@ -330,7 +325,9 @@ func (c *MongoPoolClient) getSingleNodeOplogWindow(ctx context.Context, memberNa
 	if err := oplogColl.FindOne(ctx, bson.D{}, oldestOpts).Decode(&oldest); err != nil {
 		// 查询失败时清除缓存，下次重建连接
 		directPoolLock.Lock()
-		delete(directClientPool, cacheKey)
+		if directClientPool[cacheKey] == tmpClient {
+			delete(directClientPool, cacheKey)
+		}
 		directPoolLock.Unlock()
 		_ = tmpClient.Disconnect(context.Background())
 		return 0, fmt.Errorf("查询最旧 Oplog 失败: %w", err)
@@ -341,7 +338,9 @@ func (c *MongoPoolClient) getSingleNodeOplogWindow(ctx context.Context, memberNa
 	var newest bson.M
 	if err := oplogColl.FindOne(ctx, bson.D{}, newestOpts).Decode(&newest); err != nil {
 		directPoolLock.Lock()
-		delete(directClientPool, cacheKey)
+		if directClientPool[cacheKey] == tmpClient {
+			delete(directClientPool, cacheKey)
+		}
 		directPoolLock.Unlock()
 		_ = tmpClient.Disconnect(context.Background())
 		return 0, fmt.Errorf("查询最新 Oplog 失败: %w", err)

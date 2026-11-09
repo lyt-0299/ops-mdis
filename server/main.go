@@ -233,6 +233,7 @@ func mountAlertSubsystem() {
 	go alertsvc.StartPortMonitorScheduler()
 	go alertsvc.StartSslMonitorScheduler()
 	go alertsvc.StartMongoMonitorScheduler()
+	go alertsvc.StartMongoLogCollector()
 	go alertsvc.StartMySQLMonitorScheduler()
 	go alertsvc.StartKafkaRebalanceMonitorScheduler()
 	go alertsvc.StartPauseResumeScheduler()

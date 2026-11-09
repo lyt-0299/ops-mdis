@@ -39,6 +39,7 @@ import {
 
 import ActionIcon from '@/components/ActionIcon';
 import { getCustomPageLogoType,getSourceTypeMeta,SourceTypeLabel } from '@/components/SourceTypeLogo';
+import { API_BASE_PATH } from '@/config';
 import { fetchSources } from '@/store/slices/sources';
 import {
   createCustomPage,
@@ -84,7 +85,21 @@ const PURPOSE_META = {
   metrics: { label: _l('看图'), color: 'default' },
   alert: { label: _l('告警'), color: 'default' },
   diagnose: { label: _l('慢查询诊断'), color: 'default' },
+  logs: { label: _l('运行日志'), color: 'default' },
 };
+
+function openMongoSourceLogs(id) {
+  const datasource = { type: 'loki', uid: 'DS_LOKI' };
+  const panes = {
+    mongo: {
+      datasource: datasource.uid,
+      queries: [{ refId: 'A', datasource, expr: `{log_source="mongodb", source_id=${JSON.stringify(id)}}`, queryType: 'range' }],
+      range: { from: 'now-1h', to: 'now' },
+    },
+  };
+  const query = new URLSearchParams({ schemaVersion: '1', orgId: '1', panes: JSON.stringify(panes) });
+  window.open(`${API_BASE_PATH.replace(/\/api$/, '')}/prometheus/grafana/explore?${query}`, '_blank', 'noopener,noreferrer');
+}
 
 // 新建下拉菜单（不含内置单例 Prometheus）
 const CREATE_TYPES = [
@@ -698,13 +713,23 @@ const DataSources = () => {
         title: _l('用途'),
         dataIndex: 'purposes',
         width: 220,
-        render: (purposes) => {
+        render: (purposes, record) => {
           const list = Array.isArray(purposes) ? purposes : [];
           if (!list.length) return <span className="dsEmpty">-</span>;
           return (
-            <Space size={4} className="dsPurposeTags">
+            <Space size={4} wrap className="dsPurposeTags">
               {list.map((p) => {
                 const meta = PURPOSE_META[p] || { label: p, color: 'default' };
+                if (p === 'logs' && record.type === 'mongodb' && record.enabled) {
+                  const state = health.mongoLogs?.[record.id]?.state;
+                  const statuses = {
+                    active: { color: 'success', text: _l('运行日志读取正常') },
+                    partial: { color: 'warning', text: _l('部分 MongoDB 节点日志读取失败') },
+                    error: { color: 'error', text: _l('日志采集失败，请检查 MongoDB 权限和 Loki 连通性') },
+                  };
+                  const status = statuses[state] || { color: 'default', text: _l('等待日志采集状态') };
+                  return <Tooltip key={p} title={status.text}><Tag color={status.color}>{meta.label}</Tag></Tooltip>;
+                }
                 return (
                   <Tag key={p} color={meta.color}>
                     {meta.label}
@@ -798,7 +823,7 @@ const DataSources = () => {
       },
       {
         title: _l('操作'),
-        width: 110,
+        width: 140,
         fixed: 'right',
         render: (_, record) => {
           // 自定义页面行：编辑(改名称/地址/嵌法) + 删除，无「测试连接」(状态列已经在探它了)
@@ -832,6 +857,9 @@ const DataSources = () => {
                 loading={testingId === record.id}
               />
 
+            {record.type === 'mongodb' && record.purposes?.includes('logs') && (
+              <ActionIcon type="view" title={_l('查看 MongoDB 日志')} onClick={() => openMongoSourceLogs(record.id)} />
+            )}
             {!record.builtin && (
               <>
                 <ActionIcon type="edit" title={_l('编辑')} onClick={() => handleEdit(record)} />
