@@ -10,14 +10,14 @@ ARG REDIS_EXPORTER_VER=1.44.0
 ARG MYSQL_EXPORTER_VER=0.15.1
 ARG MONGODB_EXPORTER_VER=0.42.0
 
-FROM docker.m.daocloud.io/library/node:22-bookworm-slim AS build-frontend
+FROM docker.io/library/node:22-bookworm-slim AS build-frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/yarn.lock ./
 RUN yarn install --frozen-lockfile --non-interactive
 COPY frontend/ ./
 RUN yarn build
 
-FROM docker.m.daocloud.io/library/golang:1.25-bookworm AS build-backend
+FROM docker.io/library/golang:1.25-bookworm AS build-backend
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
 RUN go mod download
@@ -25,15 +25,15 @@ COPY server/ ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -trimpath -o /out/ops-server .
 
 # ---------------- 官方镜像源阶段（COPY --from）----------------
-FROM docker.m.daocloud.io/grafana/grafana:12.2.1            AS src-grafana
-FROM docker.m.daocloud.io/grafana/loki:3.5.8               AS src-loki
-FROM docker.m.daocloud.io/grafana/tempo:2.9.0              AS src-tempo
-FROM docker.m.daocloud.io/grafana/alloy:v1.11.3            AS src-alloy
-FROM docker.m.daocloud.io/library/mongo:4.4.28             AS src-mongo
-FROM k8s.m.daocloud.io/kube-state-metrics/kube-state-metrics:v2.10.1 AS src-ksm
+FROM docker.io/grafana/grafana:12.2.1            AS src-grafana
+FROM docker.io/grafana/loki:3.5.8               AS src-loki
+FROM docker.io/grafana/tempo:2.9.0              AS src-tempo
+FROM docker.io/grafana/alloy:v1.11.3            AS src-alloy
+FROM docker.io/library/mongo:4.4.28             AS src-mongo
+FROM registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.1 AS src-ksm
 
 # ---------------- 下载阶段：prometheus / 各 exporter / node_exporter ----------------
-FROM docker.m.daocloud.io/library/debian:12.10 AS src-download
+FROM docker.io/library/debian:12.10 AS src-download
 ARG PROM_VER NODE_EXPORTER_VER KAFKA_EXPORTER_VER ES_EXPORTER_VER REDIS_EXPORTER_VER MYSQL_EXPORTER_VER MONGODB_EXPORTER_VER
 RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/' /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y wget ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -66,7 +66,7 @@ RUN mkdir -p /out/agent/kafka_exporter/logs /out/agent/elasticsearch_exporter/lo
     && rm -rf *_exporter-*
 
 # ==================== 最终镜像 ====================
-FROM docker.m.daocloud.io/library/debian:12.10
+FROM docker.io/library/debian:12.10
 ENV LANG=en_US.UTF-8
 RUN echo "en_US.UTF-8 UTF-8\nzh_CN.UTF-8 UTF-8" > /etc/locale.gen \
     && sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/' /etc/apt/sources.list.d/debian.sources \
