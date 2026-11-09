@@ -1,0 +1,22 @@
+.DS_Store
+**/node_modules/
+**/dist/
+.idea
+**/ops-server
+.playwright-mcp/
+**/__pycache__/
+*.pyc
+/mdis-host-after-fix.png
+
+# 临时截图/导出产物
+/mdis-*.png
+/tempo-*.png
+/*.png
+/dash.md
+/k8s-monitoring-quickstart.html
+
+# 集群模式部署的真实密钥（含 token / 加密密钥 / 中间件凭据），不入库
+plugin/allinone/k8s-cluster/10-secret.yaml
+
+# 本地草稿/临时产物，不入库
+scratch-*/

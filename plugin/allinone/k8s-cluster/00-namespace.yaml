@@ -1,0 +1,24 @@
+# MDIS 集群模式部署：整套 ops 栈跑在被监控的 K8s 集群内（incluster）。
+#
+# 与 ../k8s/ 的区别：
+#   ../k8s/         = MDIS 部署在集群外（单机 compose），只往被监控集群塞采集器（static 模式）
+#   ./k8s-cluster/  = MDIS 整套部署进被监控集群内（incluster 模式），本目录
+#
+# 相比 docs-pd 官方 K8s 文档的三处偏离（官方那套在云 K8s 上有真问题）：
+#   1. 有状态组件 hostPath+Deployment → StatefulSet+PVC
+#      云厂商的节点是可替换的，hostPath 在节点故障/重建时数据全丢。
+#      丢 Prometheus TSDB 只是难受，丢 ops-mongo = 告警规则全没。
+#   2. K8s 监控 static → incluster：ServiceAccount 自动发现，零 bearer token、
+#      零 NodePort 暴露（官方 static 需暴露 30080/30081/10250 三个端口）。
+#   3. 日志采集补 alloy-logs DaemonSet：ops-alloy(ROLE=alloy) 只采 Docker 容器日志，
+#      K8s(containerd) 下会自动跳过——照抄官方 = Loki 里一条日志都没有。
+#      alloy-logs 经 kube API 读 pod 日志，才是 K8s 下的正解。
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hap-ops
+  labels:
+    app.kubernetes.io/part-of: mdis
+    # 不注入 istio sidecar：MDIS 是旁路观测组件，不参与业务 mesh，
+    # 注入了反而给自己的 trace 数据添噪音。
+    istio-injection: disabled

@@ -1,0 +1,67 @@
+# 非敏感的共享环境变量。9 个角色共用同一镜像、大量 ENV 相同，抽出来避免复制 9 遍。
+#
+# ⚠️ 经网关反代的内部地址必须用 FQDN（*.hap-ops.svc.cluster.local）：
+#    gateway 里的 nginx resolver 不走 search 域，短名会解析失败。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ops-config
+  namespace: hap-ops
+data:
+  TZ: "Asia/Shanghai"
+  ENV_OPS_SUB_PATH: "/mdis"
+
+  # ── 组件互联（FQDN，见上方警告）───────────────────────
+  ENV_PROMETHEUS_SERVER: "http://ops-prometheus.hap-ops.svc.cluster.local:9090"
+  ENV_PROMETHEUS_INTERNAL_URL: "http://ops-prometheus.hap-ops.svc.cluster.local:9090/prometheus/server"
+  ENV_PROMETHEUS_GRAFANA: "http://ops-grafana.hap-ops.svc.cluster.local:3000"
+  ENV_LOKI_URL: "http://ops-loki.hap-ops.svc.cluster.local:3100"
+  ENV_TEMPO_URL: "http://ops-tempo.hap-ops.svc.cluster.local:3200"
+  ENV_ALLOY_URL: "http://ops-alloy.hap-ops.svc.cluster.local:12345"
+  ENV_OPS_MONGODB_URI: "mongodb://ops-mongo.hap-ops.svc.cluster.local:27017"
+  ENV_MONGODB_COLLECTION_PREFIX: "mdis_"
+
+  # ── 采集侧回推地址 ───────────────────────────────────
+  ENV_TEMPO_GRPC_URL: "http://ops-tempo.hap-ops.svc.cluster.local:4317"
+  ENV_LOKI_PUSH_URL: "http://ops-loki.hap-ops.svc.cluster.local:3100/loki/api/v1/push"
+
+  # ⚠️ ENV_PROMETHEUS_REMOTE_WRITE_URL 本清单**故意不设**。
+  # 这套清单里的 Prometheus 就是主平台自己，指标本来就落它自己的本地 TSDB；再填一个
+  # 指向自身 Service 的 remote_write，等于把刚采到的 kube_*/container_*/node_* 原样推
+  # 回自己，同一 series 同一时间戳重复写入，白多一份 WAL 和一趟网络往返。
+  # 只有「本集群仅作被监控集群、把指标推给别处的主平台」时才需要它 —— 那种场景装的是
+  # k8s/ 目录下的采集组件，不是这套完整平台清单。
+
+  # ── 数据源发现 ──────────────────────────────────────
+  # 监控目标(主机/中间件/K8s)全部从 UI 数据源页配置，由 ops-server 下发给 Prometheus。
+  # ⚠️ ENV_OPS_SD_URL 指向的是 ops-server 直接监听的 8081，不是网关对外的 48881
+  # （48881 是 nginx，它没有 /api/sd 路由）。Service 必须同时暴露这两个端口，
+  # 只开 48881 会让 agent 每 30s 刷「拉取 xxx 失败」、一个 exporter 都起不来。
+  ENV_OPS_SD_URL: "http://ops-gateway.hap-ops.svc.cluster.local:8081"
+  ENV_OPS_SD_TOKEN: ""
+  ENV_AGENT_SD_HOST: "ops-agent.hap-ops.svc.cluster.local"
+
+  # ── K8s 监控：incluster ──────────────────────────────
+  # 整套 MDIS 就跑在被监控集群内，Prometheus 用 ServiceAccount + kubernetes_sd_configs
+  # 自动发现 kubelet/cadvisor/kube-state-metrics/pods。零地址、零 bearer token。
+  ENV_K8S_MONITOR_MODE: "incluster"
+  ENV_K8S_KSM_NAMESPACE: "hap-ops"
+
+  # ── 保留期 ───────────────────────────────────────────
+  # 时间 30d 与 大小 80GB 先到者触发；大小保留防本地 PVC 撑满（超限删最旧 block）。
+  # ⚠️ ENV_PROMETHEUS_RETENTION_SIZE 需镜像含本仓库 roles/prometheus.sh 的 size 支持（≥本次提交）。
+  ENV_PROMETHEUS_RETENTION: "30d"
+  ENV_PROMETHEUS_RETENTION_SIZE: "80GB"
+  ENV_LOKI_RETENTION: "720h"
+  ENV_TEMPO_RETENTION: "720h"
+
+  # ── Grafana（iframe 嵌进 SPA）────────────────────────
+  GF_SECURITY_ALLOW_EMBEDDING: "true"
+  GF_AUTH_ANONYMOUS_ENABLED: "true"
+  GF_AUTH_ANONYMOUS_ORG_ROLE: "Editor"
+  GF_SECURITY_COOKIE_SAMESITE: "lax"
+  GF_USERS_DEFAULT_THEME: "light"
+
+  # ⚠️ 被监控中间件（MySQL/MongoDB/Redis/Kafka/ES/主机/K8s 集群/Flink）不在这里配置。
+  # 装完打开「数据源」页添加，或下载 YAML 模板批量导入（导入时逐条测连接）。
+  # 1.5.0 前这里有一批 ENV_MYSQL_*/ENV_REDIS_*/… 用于首启播种，已全部移除。

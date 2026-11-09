@@ -1,0 +1,50 @@
+// ===================== Docker 容器日志采集 =====================
+// 仅在宿主机 /var/run/docker.sock 存在时由 alloy.sh 装载（即单机 Compose 部署）。
+// K8s 部署下 containerd 没有 docker.sock，本文件不会被加载——容器日志由
+// alloy-logs DaemonSet 经 kube API 采集（见 k8s/40-alloy-logs.yaml）。
+//
+// 注意: HAP 内部微服务的 serilog 直推 Loki (不走 alloy), 由 hostname label 识别
+// alloy 这里只采 Docker stdout, 加 log_source=docker 标识
+// 排除 ops 监控栈自身容器(gateway/ops-*/agent/nodeagent): 它们的日志对用户是噪音。
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "10s"
+}
+
+discovery.relabel "docker" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "gateway|ops-prometheus|ops-grafana|ops-loki|ops-tempo|ops-alloy|agent|nodeagent"
+    action        = "drop"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service_name"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+  rule {
+    target_label = "log_source"
+    replacement  = "docker"
+  }
+}
+
+loki.source.docker "default" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.docker.output
+  forward_to       = [loki.write.default.receiver]
+  refresh_interval = "10s"
+}

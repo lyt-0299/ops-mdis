@@ -1,0 +1,79 @@
+// Alloy 基础配置：OTLP 接收 + Tempo/Prometheus/Loki 导出。
+// 与 docker-logs.alloy 一起放进运行目录，由 alloy.sh 按环境决定是否带上后者。
+
+// ===================== OTLP 接收 (主要用于 Tempo traces, 应用 OTLP push) =====================
+otelcol.receiver.otlp "default" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+  output {
+    traces  = [otelcol.processor.transform.normalize.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ===================== span/服务名规范化 (剥任意命名空间后缀; span 名取 grpc/http 路径, 替代 ingress/egress) =====================
+otelcol.processor.transform "normalize" {
+  error_mode = "ignore"
+
+  trace_statements {
+    context = "resource"
+    statements = [
+      // istio 注入的 service.name 形如 <服务>.<命名空间>(wwwapi.default / wwwapi.md-www)。
+      // 原先硬编码剥 ".default",只适配 Compose 场景的 default 命名空间;部署到别的
+      // 命名空间(如 nocoly 的 md-www)就剥不掉,UI 上显示成 "wwwapi.md-www"。
+      // 改为剥「最后一段 .<命名空间>」,对任意命名空间通用。
+      `replace_pattern(attributes["service.name"], "\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?$", "")`,
+    ]
+  }
+
+  trace_statements {
+    context = "span"
+    statements = [
+      `set(name, attributes["grpc.path"]) where attributes["grpc.path"] != nil`,
+      `set(name, attributes["http.route"]) where attributes["grpc.path"] == nil and attributes["http.route"] != nil`,
+      `set(name, attributes["http.url"]) where attributes["grpc.path"] == nil and attributes["http.route"] == nil and attributes["http.url"] != nil`,
+      `set(name, attributes["http.target"]) where attributes["grpc.path"] == nil and attributes["http.route"] == nil and attributes["http.url"] == nil and attributes["http.target"] != nil`,
+      `set(name, attributes["http.path"]) where attributes["grpc.path"] == nil and attributes["http.route"] == nil and attributes["http.url"] == nil and attributes["http.target"] == nil and attributes["http.path"] != nil`,
+    ]
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.default.input]
+    logs    = [otelcol.exporter.loki.default.input]
+  }
+}
+
+// ===================== Tempo 导出 =====================
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = env("ENV_TEMPO_GRPC_URL")
+    tls { insecure = true }
+  }
+}
+
+// ===================== Prometheus 导出 =====================
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint { url = env("ENV_PROMETHEUS_REMOTE_WRITE_URL") }
+}
+
+// ===================== Loki 导出 (OTLP 来源, 用于应用 OTLP logs) =====================
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+// docker-logs.alloy 里的 loki.source.docker 也 forward 到这里。
+loki.write "default" {
+  endpoint { url = env("ENV_LOKI_PUSH_URL") }
+}

@@ -1,0 +1,214 @@
+# MDIS 运维平台部署示例（1.4.10 · all-in-one 单镜像形态，方案 C）
+# 9 个 service 共用同一镜像 ops-allinone，仅靠 ROLE 区分角色；卷/端口/网络与多镜像版一致。
+# 占位符部署时按实际替换。镜像由 plugin/allinone/build.sh 构建。
+
+# 数据卷统一收在 volume/data/mdis/ 一层之下：清理/备份/单独挂盘都只需操作一个目录，
+# 也不会和 HAP 安装器建的目录混在一起（HAP 的业务库是 volume/data/mongodb，
+# 与本平台的 volume/data/mdis/mongo 只差两个字母，放在同级极易误删）。
+# ⚠️ 已经部署过的实例不要改这几行——改了 compose 会挂到空目录，表现是「监控历史和
+# 告警配置全没了」，实际数据还在旧路径。只有全新安装才用这套布局。
+
+# 镜像只在这里写一次，各服务用 *ops_image 引用——此前 9 个 service 各写一遍 tag，
+# 发版从来没同步过，客户照抄示例装到的一直是老版本。换版本改这一行即可。
+x-ops-image: &ops_image registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.9
+
+version: '3'
+services:
+  gateway:
+    image: *ops_image
+    restart: always
+    ports:
+    - 48881:48881
+    environment:
+      TZ: Asia/Shanghai
+      ENV_OPS_TOKEN: your-ops-token
+      ENV_OPS_SUB_PATH: /mdis
+      # 采集目标全部来自 UI「数据源」页（唯一来源，改完即时生效、不用重启容器）。
+      # 1.5.0 起本文件不再描述「要监控谁」，只描述平台自身依赖。
+      # 批量接入：数据源页 →「批量导入」，可先下载 YAML 模板。
+      ENV_OPS_SD_URL: http://gateway:8081
+      ENV_OPS_SD_TOKEN: ''
+      ENV_AGENT_SD_HOST: agent
+      ENV_PROMETHEUS_INTERNAL_URL: http://ops-prometheus:9090/prometheus/server
+      # ⚠️ 被监控中间件（MySQL/MongoDB/Redis/Kafka/ES/主机）不在这里配置。
+      # 装完打开「数据源」页添加，或下载 YAML 模板批量导入（导入时逐条测连接）。
+      ENV_OPS_MONGODB_URI: mongodb://ops-mongo:27017
+      ENV_MONGODB_COLLECTION_PREFIX: mdis_
+      ENV_ALERT_CRYPTO_KEY: your-32-byte-random-secret
+      ENV_PROMETHEUS_SERVER: http://ops-prometheus:9090
+      # K8s 集群监控：单机(compose)形态的平台不在任何 K8s 集群内，只能保持 off。
+      # 要监控 K8s：平台以 K8s 形态部署（装完自动采本集群），或在被监控集群里装
+      # k8s-addons 采集组件把指标推过来。1.5.3 起已无「Kubernetes 集群」数据源类型。
+      ENV_K8S_MONITOR_MODE: 'off'
+      ROLE: gateway
+    depends_on:
+    - ops-prometheus
+    - ops-grafana
+    - ops-loki
+    - ops-tempo
+    - ops-alloy
+    - ops-mongo
+  ops-prometheus:
+    image: *ops_image
+    restart: always
+    volumes:
+    - ./volume/data/mdis/prometheus/:/data/mdis/prometheus/
+    environment:
+      TZ: Asia/Shanghai
+      ENV_OPS_TOKEN: your-ops-token
+      ENV_OPS_SUB_PATH: /mdis
+      # 采集目标全部来自 UI「数据源」页（唯一来源，改完即时生效、不用重启容器）。
+      # 1.5.0 起本文件不再描述「要监控谁」，只描述平台自身依赖。
+      # 批量接入：数据源页 →「批量导入」，可先下载 YAML 模板。
+      ENV_OPS_SD_URL: http://gateway:8081
+      ENV_OPS_SD_TOKEN: ''
+      ENV_AGENT_SD_HOST: agent
+      ENV_PROMETHEUS_INTERNAL_URL: http://ops-prometheus:9090/prometheus/server
+      # ⚠️ 被监控中间件（MySQL/MongoDB/Redis/Kafka/ES/主机）不在这里配置。
+      # 装完打开「数据源」页添加，或下载 YAML 模板批量导入（导入时逐条测连接）。
+      ENV_OPS_MONGODB_URI: mongodb://ops-mongo:27017
+      ENV_MONGODB_COLLECTION_PREFIX: mdis_
+      ENV_ALERT_CRYPTO_KEY: your-32-byte-random-secret
+      ENV_PROMETHEUS_SERVER: http://ops-prometheus:9090
+      # 同上：单机形态保持 off。1.5.3 已移除 static 模式（集群外 + Bearer Token + NodePort），
+      # 填 static 不再有任何效果。
+      ENV_K8S_MONITOR_MODE: 'off'
+      ROLE: prometheus
+  ops-grafana:
+    image: *ops_image
+    restart: always
+    volumes:
+    - ./volume/data/mdis/grafana/:/data/mdis/grafana/
+    environment:
+      TZ: Asia/Shanghai
+      ENV_OPS_TOKEN: your-ops-token
+      ENV_OPS_SUB_PATH: /mdis
+      # 采集目标全部来自 UI「数据源」页（唯一来源，改完即时生效、不用重启容器）。
+      # 1.5.0 起本文件不再描述「要监控谁」，只描述平台自身依赖。
+      # 批量接入：数据源页 →「批量导入」，可先下载 YAML 模板。
+      ENV_OPS_SD_URL: http://gateway:8081
+      ENV_OPS_SD_TOKEN: ''
+      ENV_AGENT_SD_HOST: agent
+      ENV_PROMETHEUS_INTERNAL_URL: http://ops-prometheus:9090/prometheus/server
+      # ⚠️ 被监控中间件（MySQL/MongoDB/Redis/Kafka/ES/主机）不在这里配置。
+      # 装完打开「数据源」页添加，或下载 YAML 模板批量导入（导入时逐条测连接）。
+      ENV_OPS_MONGODB_URI: mongodb://ops-mongo:27017
+      ENV_MONGODB_COLLECTION_PREFIX: mdis_
+      ENV_ALERT_CRYPTO_KEY: your-32-byte-random-secret
+      ENV_PROMETHEUS_SERVER: http://ops-prometheus:9090
+      GF_SECURITY_ALLOW_EMBEDDING: 'true'
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Editor
+      GF_SECURITY_COOKIE_SAMESITE: lax
+      GF_USERS_DEFAULT_THEME: light
+      ROLE: grafana
+  ops-loki:
+    image: *ops_image
+    restart: always
+    ports:
+    - 3100:3100
+    volumes:
+    - ./volume/data/mdis/loki/:/data/mdis/loki/
+    environment:
+      ENV_LOKI_RETENTION: 720h
+      # 日志落对象存储（可选，不填用容器本地文件系统）。endpoint 要用「容器网络里能解析到的地址」：
+      # 自建 MinIO 若不在同一个 compose 网络（如另起的 swarm stack），必须填宿主机 IP + 宿主机映射端口，
+      # 写 minio:9000 会 no such host。MinIO/US3 走 path style=true，腾讯云 COS 必须 false。
+      # ⚠️ 填 host:port，别带 http:// —— Tempo 的 minio-go 只吃 host:port。
+      # ENV_S3_ENDPOINT: 10.0.0.10:9000
+      # ⚠️ 桶名用各自的专属变量，别用通用的 ENV_S3_BUCKET —— 那个会同时喂给
+      #    Loki 和 Tempo，两者共桶时 Tempo 起不来。两个桶都要先在对象存储里建好。
+      # ENV_S3_BUCKET_LOKI: mdis-loki
+      # ENV_S3_ACCESS_KEY: your-ak
+      # ENV_S3_SECRET_KEY: your-sk
+      # ENV_S3_FORCE_PATH_STYLE: 'true'
+      ROLE: loki
+  ops-tempo:
+    image: *ops_image
+    restart: always
+    volumes:
+    - ./volume/data/mdis/tempo/:/data/mdis/tempo/
+    environment:
+      ENV_TEMPO_RETENTION: 720h
+      # 注：单机部署不具备链路追踪能力（无链路数据产生），此处不配置对象存储。
+      # 链路 + 对象存储属于集群部署场景，见 K8s 部署文档。
+      ROLE: tempo
+  ops-mongo:
+    image: *ops_image
+    restart: always
+    volumes:
+    - ./volume/data/mdis/mongo/:/data/mdis/mongo
+    environment:
+      ROLE: mongo
+  ops-alloy:
+    image: *ops_image
+    restart: always
+    ports:
+    - 4317:4317
+    - 4318:4318
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./volume/data/mdis/alloy/:/data/mdis/alloy/
+    environment:
+      ENV_TEMPO_GRPC_URL: http://ops-tempo:4317
+      ENV_PROMETHEUS_REMOTE_WRITE_URL: http://ops-prometheus:9090/prometheus/server/api/v1/write
+      ENV_LOKI_PUSH_URL: http://ops-loki:3100/loki/api/v1/push
+      # 服务日志查询走 gateway 的 ENV_LOKI_URL（默认 http://ops-loki:3100，本示例拓扑无需配置）；
+      # 只有把 Loki 换成外部实例时才在 gateway 段显式指定。
+      ROLE: alloy
+  agent:
+    image: *ops_image
+    restart: always
+    environment:
+      TZ: Asia/Shanghai
+      ENV_OPS_TOKEN: your-ops-token
+      ENV_OPS_SUB_PATH: /mdis
+      # 采集目标全部来自 UI「数据源」页（唯一来源，改完即时生效、不用重启容器）。
+      # 1.5.0 起本文件不再描述「要监控谁」，只描述平台自身依赖。
+      # 批量接入：数据源页 →「批量导入」，可先下载 YAML 模板。
+      ENV_OPS_SD_URL: http://gateway:8081
+      ENV_OPS_SD_TOKEN: ''
+      ENV_AGENT_SD_HOST: agent
+      ENV_PROMETHEUS_INTERNAL_URL: http://ops-prometheus:9090/prometheus/server
+      # ⚠️ 被监控中间件（MySQL/MongoDB/Redis/Kafka/ES/主机）不在这里配置。
+      # 装完打开「数据源」页添加，或下载 YAML 模板批量导入（导入时逐条测连接）。
+      ENV_OPS_MONGODB_URI: mongodb://ops-mongo:27017
+      ENV_MONGODB_COLLECTION_PREFIX: mdis_
+      ENV_ALERT_CRYPTO_KEY: your-32-byte-random-secret
+      ENV_PROMETHEUS_SERVER: http://ops-prometheus:9090
+      ROLE: agent
+  nodeagent:
+    image: *ops_image
+    restart: always
+    volumes:
+    - /:/host:ro,rslave
+    network_mode: host
+    pid: host
+    environment:
+      TZ: Asia/Shanghai
+      ENV_OPS_TOKEN: your-ops-token
+      ENV_OPS_SUB_PATH: /mdis
+      # 采集目标全部来自 UI「数据源」页（唯一来源，改完即时生效、不用重启容器）。
+      # 1.5.0 起本文件不再描述「要监控谁」，只描述平台自身依赖。
+      # 批量接入：数据源页 →「批量导入」，可先下载 YAML 模板。
+      ENV_OPS_SD_URL: http://gateway:8081
+      ENV_OPS_SD_TOKEN: ''
+      ENV_AGENT_SD_HOST: agent
+      ENV_PROMETHEUS_INTERNAL_URL: http://ops-prometheus:9090/prometheus/server
+      # ⚠️ 被监控中间件（MySQL/MongoDB/Redis/Kafka/ES/主机）不在这里配置。
+      # 装完打开「数据源」页添加，或下载 YAML 模板批量导入（导入时逐条测连接）。
+      ENV_OPS_MONGODB_URI: mongodb://ops-mongo:27017
+      ENV_MONGODB_COLLECTION_PREFIX: mdis_
+      ENV_ALERT_CRYPTO_KEY: your-32-byte-random-secret
+      ENV_PROMETHEUS_SERVER: http://ops-prometheus:9090
+      ROLE: nodeagent
+# 直接复用 HAP 所在的网络，这样才能用服务名（如 sc）访问被监控的中间件。
+# ⚠️ 键名必须是 default：compose 只会把「没写 networks 的 service」接进名为 default
+# 的网络。此前这里写成 `script_default:`，顶层声明了却没有任何 service 引用它，
+# 九个容器实际都进了 <目录名>_default，与 HAP 不在同一张网——填 mongodb://sc:27017
+# 这类服务名一律解析不到，表现为「连接测试不过 / 面板没数据」，而配置看着完全正确。
+# name 填 docker network ls 里 HAP 那个网络的实际名字（安装目录叫 script 时即 script_default）。
+networks:
+  default:
+    external: true
+    name: script_default

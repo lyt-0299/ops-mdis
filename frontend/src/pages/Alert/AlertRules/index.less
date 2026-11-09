@@ -1,0 +1,48 @@
+.alertRulesContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .arToolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: @spacing-md;
+
+    .arFilters {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+  }
+
+  .arTableBox {
+    flex: 1;
+    overflow: auto;
+  }
+}
+
+// ── Shared text action buttons ─────────────────────────────────────────────
+.primaryTextBtn {
+  color: @color-primary;
+  cursor: pointer;
+  font-size: @font-size-base;
+  &:hover { color: @color-primary-hover; }
+}
+
+.dangerTextBtn {
+  color: @color-error;
+  cursor: pointer;
+  font-size: @font-size-base;
+  &:hover { color: @color-error; }
+}
+
+.divider {
+  display: inline-block;
+  margin: 0 6px;
+  color: @color-border;
+  font-size: @font-size-sm;
+}

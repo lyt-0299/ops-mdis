@@ -1,0 +1,304 @@
+# 有状态五件套：ops-mongo / ops-prometheus / ops-grafana / ops-loki / ops-tempo
+#
+# 全部 StatefulSet + volumeClaimTemplates(PVC)，替代官方文档的 Deployment + hostPath。
+#   - hostPath 在云 K8s 上：节点故障/重建 = 数据全丢。丢 ops-mongo = 告警规则全没。
+#   - StatefulSet 单副本天然「先删后建」，不会像 Deployment 滚动更新那样让新旧 Pod
+#     同时挂同一块盘（这也是官方为什么要显式写 strategy: Recreate 的原因）。
+#
+# storageClassName 留空 = 用集群默认 SC。若默认 SC 不支持在线扩容(allowVolumeExpansion)，
+# 建议先建一个支持扩容的 SC 再部署——PVC 建出来后改 SC 要重建盘。
+# 腾讯云 TKE 示例见 README.md。
+#
+# 容量按「起步值 + 可在线扩容」给；不可缩容，所以别一次给太大。
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-mongo
+  namespace: hap-ops
+spec:
+  clusterIP: None            # StatefulSet 的 headless service
+  selector:
+    app: ops-mongo
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ops-mongo
+  namespace: hap-ops
+spec:
+  serviceName: ops-mongo
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-mongo
+  template:
+    metadata:
+      labels:
+        app: ops-mongo
+    spec:
+      containers:
+        - name: ops-mongo
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: mongo
+          ports:
+            - name: mongo
+              containerPort: 27017
+          volumeMounts:
+            - name: data
+              mountPath: /data/mdis/mongo
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1",  memory: 2Gi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 20Gi     # 告警规则/状态/历史 + 慢查询历史。量小，但最不能丢。
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-prometheus
+  namespace: hap-ops
+spec:
+  clusterIP: None
+  selector:
+    app: ops-prometheus
+  ports:
+    - name: server
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ops-prometheus
+  namespace: hap-ops
+spec:
+  serviceName: ops-prometheus
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-prometheus
+  template:
+    metadata:
+      labels:
+        app: ops-prometheus
+    spec:
+      serviceAccountName: ops-prometheus     # incluster 模式自动发现所需
+      containers:
+        - name: ops-prometheus
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: prometheus
+          envFrom:
+            - configMapRef: { name: ops-config }
+            - secretRef:    { name: ops-secret }
+          ports:
+            - name: web
+              containerPort: 9090
+          volumeMounts:
+            - name: data
+              mountPath: /data/mdis/prometheus
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits:   { cpu: "2",  memory: 4Gi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 100Gi    # TSDB，retention 30d 或 80GB 先到；100Gi 留 ~11G 缓冲
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-grafana
+  namespace: hap-ops
+spec:
+  clusterIP: None
+  selector:
+    app: ops-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ops-grafana
+  namespace: hap-ops
+spec:
+  serviceName: ops-grafana
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-grafana
+  template:
+    metadata:
+      labels:
+        app: ops-grafana
+    spec:
+      containers:
+        - name: ops-grafana
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: grafana
+          envFrom:
+            - configMapRef: { name: ops-config }
+            - secretRef:    { name: ops-secret }
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: data
+              mountPath: /data/mdis/grafana
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1",  memory: 1Gi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 10Gi     # 看板/数据源配置（云盘最小 10G）
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-loki
+  namespace: hap-ops
+spec:
+  clusterIP: None
+  selector:
+    app: ops-loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ops-loki
+  namespace: hap-ops
+spec:
+  serviceName: ops-loki
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-loki
+  template:
+    metadata:
+      labels:
+        app: ops-loki
+    spec:
+      containers:
+        - name: ops-loki
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: loki
+            # ↓ 日志落对象存储的桶名（部署时改成本环境的桶，需提前在对象存储里建好）；
+            #   S3/COS 凭据与开关在 ops-secret（ENV_S3_ENDPOINT/ACCESS_KEY/SECRET_KEY/
+            #   FORCE_PATH_STYLE，见 10-secret.yaml.example）
+            - name: ENV_S3_BUCKET_LOKI
+              value: "mdis-loki"
+          envFrom:
+            - configMapRef: { name: ops-config }
+            - secretRef:    { name: ops-secret }
+          ports:
+            - name: http
+              containerPort: 3100
+          volumeMounts:
+            - name: data
+              mountPath: /data/mdis/loki
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits:   { cpu: "2",  memory: 4Gi }
+      # 日志落 COS/S3（见上 ENV_S3_*），本地 emptyDir 只存 WAL/head 滚动缓冲；
+      # 节点重建不丢数据（历史在对象存储）。若改用本地盘后端：删本段 volumes、还原 volumeClaimTemplates(PVC)。
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-tempo
+  namespace: hap-ops
+spec:
+  clusterIP: None
+  selector:
+    app: ops-tempo
+  ports:
+    - name: query
+      port: 3200
+      targetPort: 3200
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ops-tempo
+  namespace: hap-ops
+spec:
+  serviceName: ops-tempo
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-tempo
+  template:
+    metadata:
+      labels:
+        app: ops-tempo
+    spec:
+      containers:
+        - name: ops-tempo
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: tempo
+            # ↓ 链路落对象存储的桶名，⚠️ 必须与 Loki 用不同的桶（共桶会导致 Tempo 起不来）；
+            #   同样需提前建好。tempo 用 minio-go，bucket_lookup_type 由 roles/tempo.sh 据
+            #   FORCE_PATH_STYLE 派生；endpoint 的 scheme 也由它自动剥离，见 README §2
+            - name: ENV_S3_BUCKET_TEMPO
+              value: "mdis-tempo"
+          envFrom:
+            - configMapRef: { name: ops-config }
+            - secretRef:    { name: ops-secret }
+          ports:
+            - name: query
+              containerPort: 3200
+            - name: otlp-grpc
+              containerPort: 4317
+          volumeMounts:
+            - name: data
+              mountPath: /data/mdis/tempo
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits:   { cpu: "2",  memory: 4Gi }
+      # 链路落 COS/S3（见上 ENV_S3_*），本地 emptyDir 只存 WAL/未刷 block；
+      # 节点重建不丢数据（历史在对象存储）。若改用本地盘后端：删本段 volumes、还原 volumeClaimTemplates(PVC)。
+      volumes:
+        - name: data
+          emptyDir: {}

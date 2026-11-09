@@ -1,0 +1,57 @@
+.alertDataSourcesContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .dsToolbar {
+    justify-content: flex-end;
+    margin-bottom: @spacing-lg;
+
+    .dsTitle {
+      font-size: @font-size-lg;
+      font-weight: 600;
+      color: @color-text-heading;
+    }
+  }
+
+  .dsTableBox {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .dsNameCell {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+  }
+
+  .dsUrlCell {
+    font-family: monospace;
+    font-size: 12px;
+    color: @color-text-secondary;
+  }
+}
+
+.dsForm {
+  margin-top: 8px;
+}
+
+// ── Text action buttons (matches SlowQuery style) ──────────────────────────
+// .primaryTextBtn is already a global class in basic.less
+// .dangerTextBtn is specific to alert pages
+.dangerTextBtn {
+  color: @color-error;
+  cursor: pointer;
+  font-size: 13px;
+
+  &:hover {
+    color: @color-error;
+  }
+}
+
+.divider {
+  display: inline-block;
+  margin: 0 8px;
+  color: @color-border;
+  font-size: 12px;
+}

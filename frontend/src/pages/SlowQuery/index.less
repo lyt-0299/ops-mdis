@@ -1,0 +1,181 @@
+.slowQueryContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-top: 20px;
+
+  .slowQueryToolbar {
+    padding: @spacing-md;
+    margin-bottom: @spacing-md;
+    background: @color-bg-base;
+    border: 1px solid @color-border-light;
+    border-radius: @radius-lg;
+    box-shadow: @shadow-sm;
+  }
+
+  .slowQueryToolbarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: @spacing-lg;
+    min-height: 34px;
+  }
+
+  .databaseContainer {
+    display: flex;
+    align-items: center;
+    gap: @spacing-md;
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  .databaseSelect {
+    width: 160px;
+    flex: 0 0 160px;
+
+    .ant-select-prefix {
+      color: @primary-color;
+    }
+  }
+
+  .slowQueryRule {
+    display: flex;
+    align-items: center;
+    gap: @spacing-sm;
+    min-width: 0;
+    color: @color-text-secondary;
+    line-height: 22px;
+
+    strong {
+      color: @color-text-heading;
+      font-weight: 600;
+    }
+  }
+
+  .slowQueryRuleStatus {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    background: @color-success;
+    border-radius: 50%;
+  }
+
+  .slowQueryRuleWarning {
+    flex: 0 0 auto;
+    color: @color-warning;
+  }
+
+  .slowQueryToolbarActions {
+    display: flex;
+    align-items: center;
+    gap: @spacing-sm;
+    flex: 0 0 auto;
+
+    .ant-btn-text {
+      color: @color-text-tertiary;
+    }
+  }
+
+  .slowQueryFilters {
+    display: flex;
+    align-items: center;
+    gap: @spacing-md;
+    padding-top: @spacing-md;
+    margin-top: @spacing-md;
+    border-top: 1px solid @color-border-light;
+  }
+
+  .slowQuerySearch {
+    width: 400px;
+    max-width: 100%;
+
+    .ant-input-prefix {
+      color: @color-text-muted;
+    }
+  }
+
+  .sourceSelect {
+    width: 200px;
+  }
+
+  .tableBox {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+  }
+
+}
+
+@media (max-width: 900px) {
+  .slowQueryContainer {
+    .slowQueryToolbarHeader,
+    .databaseContainer {
+      align-items: flex-start;
+    }
+
+    .databaseContainer,
+    .slowQueryFilters {
+      flex-wrap: wrap;
+    }
+
+    .slowQueryRule {
+      flex-basis: 100%;
+    }
+
+    .slowQuerySearch {
+      flex: 1 1 280px;
+      width: auto;
+    }
+
+    .sourceSelect {
+      flex: 1 1 180px;
+      width: auto;
+    }
+  }
+}
+
+.slowQueryDetail {
+
+  .appDetailBox + .appDetailBox {
+    margin-top: 8px;
+  }
+
+  .slowQueryShowIdInfo {
+    position: relative;
+    padding-left: 20px;
+    cursor: pointer;
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      background: url('@/assets/ID.svg') no-repeat center;
+      transition: background-image 0.3s;
+    }
+    &:hover::before {
+      background-image: url('@/assets/IDActive.svg');
+    }
+  }
+}
+
+.suggestIndexModalCopyBox {
+  display: inline-block;
+  .ant-typography .ant-typography-copy-success:focus {
+    color: @primary-color;
+  }
+}
+.suggestIndexModalContent {
+  padding: 13px;
+  min-height: 100px;
+  background: @color-bg-muted;
+  border-radius: @radius-sm;
+  border: 1px solid @color-border-light;
+}
+
+.createIndexModalContent {
+  color: @color-text;
+}

@@ -1,0 +1,29 @@
+.worksheetShardingContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .searchBox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+
+    .searchItemBox {
+      display: flex;
+      align-items: center;
+      
+      .searchLabel {
+        margin-right: 12px;
+        font-size: 13px;
+        color: @color-text;
+      }
+    }
+  }
+
+  .tableBox {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+  }
+}

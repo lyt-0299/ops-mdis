@@ -1,0 +1,234 @@
+# 无状态：ops-gateway / ops-agent / ops-ksm / ops-alloy
+---
+# ⚠️ 必须拆成两个 Service。
+#
+# type: NodePort 会给该 Service 的【每一个】端口都分配 NodePort——把 8081(ops-server
+# 内部 API，仅供集群内 Prometheus 做 http SD)也一起暴露到每个节点上，是不必要的攻击面。
+# 故：UI 走 NodePort，API 只走 ClusterIP。
+#
+# 注意 Service 名必须保持 ops-gateway：ENV_OPS_SD_URL 指向
+# http://ops-gateway.hap-ops.svc.cluster.local:8081，改名会断掉 Prometheus 的 SD。
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-gateway           # 集群内部用（Prometheus http SD 拉 target）
+  namespace: hap-ops
+spec:
+  type: ClusterIP
+  selector:
+    app: ops-gateway
+  ports:
+    - name: api
+      port: 8081
+      targetPort: 8081
+    - name: ui
+      port: 48881
+      targetPort: 48881
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-gateway-ui        # 只暴露 UI，供集群外的 nginx 反代
+  namespace: hap-ops
+spec:
+  type: NodePort
+  selector:
+    app: ops-gateway
+  ports:
+    - name: ui
+      port: 48881
+      targetPort: 48881
+      nodePort: 30881
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops-gateway
+  namespace: hap-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-gateway
+  template:
+    metadata:
+      labels:
+        app: ops-gateway
+    spec:
+      containers:
+        - name: ops-gateway
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: gateway
+          envFrom:
+            - configMapRef: { name: ops-config }
+            - secretRef:    { name: ops-secret }
+          ports:
+            - name: ui
+              containerPort: 48881
+            - name: api
+              containerPort: 8081
+          readinessProbe:
+            httpGet: { path: /mdis/web/, port: 48881 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1",  memory: 1Gi }
+---
+# ⚠️ 必须是 headless（clusterIP: None）。
+#
+# ops-agent 为「每个数据源实例」动态起一个 exporter 进程，端口是动态分配的
+# （mongodb 19400+、kafka 19500+、mysql 19100+、es/redis 类推），随实例数增长。
+# 普通 ClusterIP Service 只转发 ports 里列出的端口，动态端口一律 connection refused
+# —— Prometheus 会把所有中间件 target 报成 DOWN。
+#
+# headless Service 的 DNS 直接解析到 Pod IP，Prometheus 可直连任意端口，无需枚举。
+# （官方 docs-pd 文档给的是 ClusterIP + 固定 5 端口，那只在「单实例 + env SD 静态模式」
+#  下成立；多实例 + http SD 模式下必然抓不到。）
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-agent
+  namespace: hap-ops
+spec:
+  clusterIP: None
+  selector:
+    app: ops-agent
+  ports:
+    # headless 下这些端口声明只是文档性质，实际连接不受此列表限制。
+    - { name: mysql,         port: 9104, targetPort: 9104 }
+    - { name: elasticsearch, port: 9114, targetPort: 9114 }
+    - { name: redis,         port: 9121, targetPort: 9121 }
+    - { name: mongodb,       port: 9216, targetPort: 9216 }
+    - { name: kafka,         port: 9308, targetPort: 9308 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops-agent
+  namespace: hap-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-agent
+  template:
+    metadata:
+      labels:
+        app: ops-agent
+    spec:
+      containers:
+        - name: ops-agent
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: agent
+          envFrom:
+            - configMapRef: { name: ops-config }
+            - secretRef:    { name: ops-secret }
+          ports:
+            - { containerPort: 9104 }
+            - { containerPort: 9114 }
+            - { containerPort: 9121 }
+            - { containerPort: 9216 }
+            - { containerPort: 9308 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: "1",  memory: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics       # 名字固定：incluster 模式的 Prometheus 按此发现
+  namespace: hap-ops
+  labels:
+    app: ops-ksm
+spec:
+  selector:
+    app: ops-ksm
+  ports:
+    - { name: http-metrics, port: 8080, targetPort: 8080 }
+    - { name: telemetry,    port: 8081, targetPort: 8081 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops-ksm
+  namespace: hap-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-ksm
+  template:
+    metadata:
+      labels:
+        app: ops-ksm
+    spec:
+      serviceAccountName: ops-ksm
+      containers:
+        - name: ops-ksm
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: ksm
+          ports:
+            - { name: http-metrics, containerPort: 8080 }
+            - { name: telemetry,    containerPort: 8081 }
+          resources:
+            requests: { cpu: 50m,  memory: 128Mi }
+            limits:   { cpu: 500m, memory: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-alloy
+  namespace: hap-ops
+spec:
+  selector:
+    app: ops-alloy
+  ports:
+    # ⚠️ appProtocol: grpc 必须有。istio 靠它把 4317 的上游 cluster 配成 HTTP/2；
+    #    缺了(端口名 otlp-grpc 前缀非 grpc-/http2-，istio 不识别)→ cluster 走
+    #    use_downstream 而非 h2 → sidecar 的 OpenTelemetry tracer(envoy_grpc)建不起
+    #    gRPC 流 → 静默不产 span，全 mesh 0 trace。这是 istio 链路追踪能否上报的开关。
+    - { name: otlp-grpc, port: 4317,  targetPort: 4317, appProtocol: grpc }
+    - { name: otlp-http, port: 4318,  targetPort: 4318 }
+    - { name: http,      port: 12345, targetPort: 12345 }
+---
+# ops-alloy：OTLP 接收端（应用/istio sidecar 把 trace 打到这里 → 转发 ops-tempo）。
+# 它在 K8s 下不采容器日志——容器日志由本目录 50-daemonsets.yaml 里的 alloy-logs
+# 经 kube API 采集。alloy.sh 检测不到 /var/run/docker.sock 时会自动跳过 Docker
+# 采集段并在启动日志说明，不再刷 docker.sock 连接报错。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops-alloy
+  namespace: hap-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-alloy
+  template:
+    metadata:
+      labels:
+        app: ops-alloy
+    spec:
+      containers:
+        - name: ops-alloy
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: alloy
+          envFrom:
+            - configMapRef: { name: ops-config }
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: http,      containerPort: 12345 }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1",  memory: 2Gi }

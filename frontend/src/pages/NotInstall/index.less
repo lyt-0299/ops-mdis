@@ -1,0 +1,39 @@
+.notInstallContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  .notInstallContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .notInstallIconBox {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      background: @color-bg-muted;
+  
+      .apiIcon {
+        font-size: 60px;
+        color: @color-text-muted;
+      }
+    }
+
+    .tips {
+      font-size: 20px;
+      color: @color-text;
+
+      span {
+        cursor: pointer;
+        color: @color-primary;
+      }
+    }
+  }
+}

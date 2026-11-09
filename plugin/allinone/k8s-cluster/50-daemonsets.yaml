@@ -1,0 +1,176 @@
+# 两个 DaemonSet：
+#   ops-nodeagent — node_exporter，采每个节点的主机指标
+#   alloy-logs    — 经 kube API 采每个节点上 pod 的容器日志 → ops-loki
+#
+# ⚠️ alloy-logs 不能省：ops-alloy(ROLE=alloy) 只采 Docker(单机 Compose)容器日志，
+#    在 K8s(containerd) 下它会自动跳过采集段，一条容器日志都不会进 Loki。
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ops-nodeagent
+  namespace: hap-ops
+spec:
+  selector:
+    matchLabels:
+      app: ops-nodeagent
+  template:
+    metadata:
+      labels:
+        app: ops-nodeagent
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists          # 覆盖控制面/带污点的节点
+      containers:
+        - name: ops-nodeagent
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: nodeagent
+          ports:
+            - name: metrics
+              containerPort: 59100
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+              readOnly: true
+              mountPropagation: HostToContainer
+          resources:
+            requests: { cpu: 50m,  memory: 64Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-logs
+  namespace: hap-ops
+data:
+  config.alloy: |
+    // 发现集群内所有 pod（DaemonSet 每节点一个实例，下面按本节点过滤）
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    discovery.relabel "pod_logs" {
+      targets = discovery.kubernetes.pods.targets
+
+      // 只采当前节点的 pod
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        regex         = env("NODE_NAME")
+        action        = "keep"
+      }
+      // 排除 ops 监控栈自身的 pod，与单机 Compose 形态(conf/alloy/docker-logs.alloy，
+      // 1.2.4 起)对齐。不排除的话 ops-gateway/ops-loki 自己的日志会灌满 Loki——客户
+      // 环境实测占全部容器日志约 75%，且 Loki 采自己构成自反馈环。
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        regex         = "ops-.*|alloy-logs|kube-state-metrics|node-exporter"
+        action        = "drop"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        regex         = "ops-.*|alloy-logs|kube-state-metrics|node-exporter"
+        action        = "drop"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label  = "node"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+      }
+      rule {
+        target_label = "log_source"
+        replacement  = "k8s"
+      }
+    }
+
+    // 经 kube API 读 pod 日志（无需 hostPath / 路径拼接，containerd 亦可）
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pod_logs.output
+      forward_to = [loki.write.default.receiver]
+    }
+
+    loki.write "default" {
+      endpoint {
+        url = env("ENV_LOKI_PUSH_URL")
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy-logs
+  namespace: hap-ops
+spec:
+  selector:
+    matchLabels:
+      app: alloy-logs
+  template:
+    metadata:
+      labels:
+        app: alloy-logs
+    spec:
+      serviceAccountName: alloy-logs
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: alloy
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          # K8s 日志采集用专门的 ConfigMap 配置（异于 docker 版 config.alloy），
+          # 故覆盖入口直跑 alloy 二进制，不走 ROLE 分发。
+          command: ["/usr/local/bin/alloy"]
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/tmp/alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          envFrom:
+            - configMapRef: { name: ops-config }   # 提供 ENV_LOKI_PUSH_URL
+          ports:
+            - name: http
+              containerPort: 12345
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: wal
+              mountPath: /tmp/alloy
+          resources:
+            # ephemeral-storage 要显式声明：--storage.path 的 WAL 写在可写层，
+            # request 缺省为 0 时 kubelet 把它当「超额使用」，节点磁盘一紧优先驱逐。
+            requests: { cpu: 50m,  memory: 128Mi, ephemeral-storage: 200Mi }
+            limits:   { cpu: 500m, memory: 512Mi, ephemeral-storage: 2Gi }
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-logs
+        # WAL 是可丢的发送缓冲；给 sizeLimit 让 Loki 长时间不可达时只清这个卷，
+        # 而不是把整个 Pod 驱逐掉。
+        - name: wal
+          emptyDir:
+            sizeLimit: 2Gi

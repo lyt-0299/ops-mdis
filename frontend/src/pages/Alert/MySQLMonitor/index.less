@@ -1,0 +1,62 @@
+.mysqlMonitorContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-top: 20px;
+
+  .sqlToolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+
+    .sqlFilters {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+  }
+
+  .sqlTableBox {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .sqlInstanceCell {
+    display: inline-flex;
+    align-items: center;
+    gap: @spacing-xs;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .sqlInstanceArch {
+    flex-shrink: 0;
+    color: @color-text-disabled;
+    font-size: @font-size-sm;
+  }
+}
+
+.primaryTextBtn {
+  color: @color-primary;
+  cursor: pointer;
+  font-size: @font-size-base;
+  &:hover { color: @color-primary-hover; }
+}
+
+.dangerTextBtn {
+  color: @color-error;
+  cursor: pointer;
+  font-size: @font-size-base;
+  &:hover { color: @color-error; }
+}
+
+.divider {
+  display: inline-block;
+  margin: 0 6px;
+  color: @color-border;
+  font-size: @font-size-sm;
+}

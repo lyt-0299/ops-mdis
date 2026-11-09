@@ -1,0 +1,98 @@
+# my global config
+global:
+  scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: "prometheus"
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+    static_configs:
+      - targets: ["localhost:9090"]
+    metrics_path: "/prometheus/server/metrics"
+
+  # Host monitoring job
+  - job_name: "host"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/host.yaml
+
+  # 动态 exporter 各 job:把 instance 标签改成数据源名(SD 已下发的 hostname 标签),
+  # 而非抓取地址 agent:<port>,使资源监控看板的 Instance 与「数据源」页名称一致。
+  # hostname 为空时不改(regex 不匹配),instance 回退默认 __address__。
+
+  # Kafka monitoring job
+  - job_name: "kafka"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/kafka.yaml
+    relabel_configs:
+      - source_labels: [hostname]
+        regex: (.+)
+        target_label: instance
+
+  # Elasticsearch monitoring job
+  - job_name: "elasticsearch"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/elasticsearch.yaml
+    relabel_configs:
+      - source_labels: [hostname]
+        regex: (.+)
+        target_label: instance
+
+  # Redis monitoring job
+  - job_name: "redis"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/redis.yaml
+    relabel_configs:
+      - source_labels: [hostname]
+        regex: (.+)
+        target_label: instance
+
+  # MySQL monitoring job
+  - job_name: "mysql"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/mysql.yaml
+    relabel_configs:
+      - source_labels: [hostname]
+        regex: (.+)
+        target_label: instance
+
+  # MongoDB monitoring job
+  - job_name: "mongodb"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/mongodb.yaml
+    relabel_configs:
+      - source_labels: [hostname]
+        regex: (.+)
+        target_label: instance
+
+  # --- K8s monitoring (static mode) ---
+  # 仅 ENV_K8S_MONITOR_MODE=static 时 entrypoint 才渲染下面两个 file_sd 文件；
+  # 未配置时文件不存在 → 无 target，无害（与上方中间件 job 同构）。
+  # incluster 模式由 entrypoint 另行追加 kubernetes_sd_configs job（job 名带 k8s- 前缀）。
+
+  # kube-state-metrics（集群对象状态）
+  - job_name: "kube-state-metrics"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/k8s-ksm.yaml
+
+  # K8s node_exporter（节点资源）
+  - job_name: "k8s-node"
+    file_sd_configs:
+      - files:
+        - /usr/local/prometheus/server/k8s-node.yaml

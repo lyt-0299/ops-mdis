@@ -1,0 +1,291 @@
+{
+  "uid": "ServiceLogs",
+  "title": "Service Logs",
+  "tags": [
+    "logs",
+    "services",
+    "hap"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "quick_ranges": [
+      {
+        "display": "Last 15 minutes",
+        "from": "now-15m",
+        "to": "now"
+      },
+      {
+        "display": "Last 1 hour",
+        "from": "now-1h",
+        "to": "now"
+      },
+      {
+        "display": "Last 3 hours",
+        "from": "now-3h",
+        "to": "now"
+      },
+      {
+        "display": "Last 6 hours",
+        "from": "now-6h",
+        "to": "now"
+      },
+      {
+        "display": "Last 12 hours",
+        "from": "now-12h",
+        "to": "now"
+      },
+      {
+        "display": "Last 24 hours",
+        "from": "now-24h",
+        "to": "now"
+      },
+      {
+        "display": "Last 2 days",
+        "from": "now-2d",
+        "to": "now"
+      },
+      {
+        "display": "Last 7 days",
+        "from": "now-7d",
+        "to": "now"
+      },
+      {
+        "display": "Last 30 days",
+        "from": "now-30d",
+        "to": "now"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "search",
+        "type": "textbox",
+        "label": "Search Keyword",
+        "description": "Full-text match on log body + all stream labels (case-insensitive)",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "options": [
+          {
+            "text": "",
+            "value": "",
+            "selected": true
+          }
+        ],
+        "query": "",
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "service_name",
+        "type": "query",
+        "label": "Service",
+        "datasource": {
+          "type": "loki",
+          "uid": "DS_LOKI"
+        },
+        "query": "label_values({hostname=~\".+\"}, service_name)",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "sort": 1,
+        "hide": 0
+      },
+      {
+        "name": "detected_level",
+        "type": "custom",
+        "label": "Level",
+        "query": "error,warning,warn,info,debug,trace,fatal",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Service Log Rate (lines/s)",
+      "datasource": {
+        "type": "loki",
+        "uid": "DS_LOKI"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "DS_LOKI"
+          },
+          "refId": "A",
+          "expr": "sum(rate({hostname=~\".+\", service_name=~\"$service_name\"} |~ `\"level\":\"(${detected_level:regex})\"` |~ \"(?i)${search:raw}\" [1m])) by (service_name)",
+          "legendFormat": "{{service_name}}{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Service Error Rate (lines/s)",
+      "datasource": {
+        "type": "loki",
+        "uid": "DS_LOKI"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "DS_LOKI"
+          },
+          "refId": "A",
+          "expr": "sum(rate({hostname=~\".+\", service_name=~\"$service_name\"} |~ \"(?i)(error|exception|fail|fatal)\" |~ \"(?i)${search:raw}\" [1m])) by (service_name)",
+          "legendFormat": "{{service_name}}{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "logs",
+      "title": "Service Logs (with stream labels expanded)",
+      "datasource": {
+        "type": "loki",
+        "uid": "DS_LOKI"
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "DS_LOKI"
+          },
+          "refId": "A",
+          "expr": "{hostname=~\".+\", service_name=~\"$service_name\"} |~ `\"level\":\"(${detected_level:regex})\"` | line_format \"{{ __line__ }}{{ if .action }}\\n  ⏵ action: {{ .action }}{{ end }}{{ if .detected_level }}\\n  ⏵ level: {{ .detected_level }}{{ end }}{{ if .elapsedmilliseconds }}\\n  ⏵ elapsed_ms: {{ .elapsedmilliseconds }}{{ end }}{{ if .extras }}\\n  ⏵ extras: {{ .extras }}{{ end }}{{ if .stack }}\\n  ⏵ stack: {{ .stack }}{{ end }}\" |~ \"(?i)${search:raw}\"",
+          "maxLines": 300
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending",
+        "enableInfiniteScrolling": true,
+        "showControls": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+.sourceTypeLogo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  color: @color-text-secondary;
+  background: @color-bg-base;
+  border: 1px solid @color-border-light;
+  border-radius: @radius-md;
+}
+
+.sourceTypeLogo--sm {
+  width: 22px;
+  height: 22px;
+  border-radius: @radius-sm;
+}
+
+.sourceTypeLogo svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.sourceTypeLogo--sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sourceTypeLogoIcon {
+  font-size: 16px;
+}
+
+.sourceTypeLogoStroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.sourceTypeLogo--prometheus {
+  color: #e6522c;
+  background: #fff4ef;
+  border-color: #ffc8b8;
+}
+
+.sourceTypeLogo--host {
+  color: @color-slate;
+  background: @color-bg-muted;
+}
+
+
+.sourceTypeLogo--flink {
+  color: @color-slate;
+  background: @color-bg-muted;
+}
+
+// 自定义页面：外链页没有品牌可言，走中性灰（3 色纪律里「其余一切分类 → 中性灰」）
+.sourceTypeLogo--custom {
+  color: @color-slate;
+  background: @color-bg-muted;
+}
+
+.sourceTypeLogo--kafka {
+  color: #231f20;
+  background: #f5f5f5;
+}
+
+.sourceTypeLogo--mongodb {
+  color: #47a248;
+  background: #f3fff0;
+  border-color: #b7eb8f;
+}
+
+.sourceTypeLogo--mysql {
+  color: #00758f;
+  background: #eefaff;
+  border-color: #91d5ff;
+}
+
+.sourceTypeLogo--redis {
+  color: #dc382d;
+  background: #fff1f0;
+  border-color: @color-error-light;
+}
+
+.sourceTypeLogo--elasticsearch {
+  color: #f4bd19;
+  background: #fffbe6;
+  border-color: #ffe58f;
+}
+
+.sourceTypeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: @spacing-sm;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.sourceTypeLabel--iconOnly {
+  justify-content: center;
+  gap: 0;
+}
+
+.sourceTypeLabelText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sourceTypeTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: @spacing-sm;
+  min-width: 0;
+}

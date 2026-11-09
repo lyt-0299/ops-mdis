@@ -1,0 +1,113 @@
+.monitorPanels {
+  padding: @spacing-lg;
+}
+
+.monitorToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: @spacing-md;
+  margin-bottom: @spacing-lg;
+
+  h1 {
+    margin: 0;
+    color: @color-text-heading;
+    font-size: @font-size-lg;
+    font-weight: 600;
+  }
+}
+
+.monitorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: @spacing-lg;
+  margin-top: @spacing-md;
+
+  .ant-card {
+    min-width: 0;
+    border-color: @color-border;
+  }
+
+  .ant-card-body > .ant-spin {
+    display: block;
+    margin: @spacing-xl;
+  }
+}
+
+.monitorPanelExpression {
+  display: block;
+  margin-bottom: @spacing-md;
+  padding: @spacing-xs @spacing-sm;
+  background: @color-bg-muted;
+  color: @color-text-secondary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.monitorMetricPicker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: @spacing-sm;
+  margin-bottom: @spacing-md;
+}
+
+.monitorExpression {
+  font-family: monospace;
+}
+
+.monitorChart {
+  display: block;
+  width: 100%;
+  margin-top: @spacing-md;
+
+  text {
+    fill: @color-text-secondary;
+    font-size: @font-size-sm;
+  }
+}
+
+.monitorGridLine {
+  stroke: @color-border;
+}
+
+.monitorSeries {
+  fill: none;
+  stroke: @color-primary;
+  stroke-width: 2;
+}
+
+.monitorSample {
+  fill: @color-primary;
+}
+
+.monitorLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @spacing-xs @spacing-md;
+  max-height: 6em;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: @spacing-sm 0 0;
+  color: @color-text-secondary;
+  font-size: @font-size-sm;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: @spacing-xs;
+    max-width: 100%;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

@@ -1,0 +1,406 @@
+
+.authPage {
+  position: relative;
+  box-sizing: border-box;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 48px;
+  background:
+    radial-gradient(circle at 18% 18%, fade(@color-primary, 12%) 0, transparent 30%),
+    linear-gradient(135deg, #f8fbff 0%, @color-bg-page 48%, #eef4fb 100%);
+}
+
+.authLanguageSwitch {
+  position: absolute;
+  top: 28px;
+  right: 36px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0;
+  color: @color-text-secondary;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+
+  .anticon-global {
+    color: @color-text-muted;
+    font-size: 18px;
+  }
+
+  span {
+    min-width: 22px;
+    font-size: @font-size-md;
+    font-weight: 500;
+    line-height: 32px;
+  }
+
+  &:hover {
+    color: @color-text-heading;
+  }
+}
+
+.authLanguageArrow {
+  color: @color-text-muted;
+  font-size: 10px;
+}
+
+.authLanguageDropdown {
+  .ant-dropdown-menu {
+    min-width: 148px;
+    padding: @spacing-xs;
+    border: 1px solid @color-border-light;
+    border-radius: @radius-md;
+    box-shadow: 0 12px 32px rgba(17, 24, 39, 0.14);
+  }
+
+  .ant-dropdown-menu-item {
+    min-height: 36px;
+    justify-content: center;
+    margin: 2px 0;
+    padding: 0 @spacing-md;
+    color: @color-text-secondary;
+    border-radius: @radius-sm;
+    font-size: @font-size-base;
+    transition: color 0.16s ease, background 0.16s ease;
+
+    .ant-dropdown-menu-title-content {
+      text-align: center;
+    }
+
+    &:hover {
+      color: @color-primary;
+      background: @color-primary-bg;
+    }
+  }
+
+  .ant-dropdown-menu-item-selected {
+    color: @color-primary;
+    background: @color-primary-bg;
+    font-weight: 600;
+  }
+}
+
+.authShell {
+  width: min(1120px, 100%);
+  height: min(460px, calc(100vh - 124px));
+  min-height: 420px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 480px;
+  overflow: hidden;
+  background: fade(@color-bg-base, 86%);
+  border: 1px solid @color-border-light;
+  border-radius: @radius-xl;
+  box-shadow: @shadow-md;
+  backdrop-filter: blur(16px);
+}
+
+.authBrandPanel {
+  position: relative;
+  padding: 40px 48px;
+  color: @color-bg-base;
+  background:
+    linear-gradient(140deg, fade(@color-primary-hover, 94%) 0%, fade(@color-primary, 92%) 58%, #0f4fba 100%);
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -90px;
+    bottom: -110px;
+    width: 260px;
+    height: 260px;
+    border: 36px solid fade(@color-bg-base, 12%);
+    border-radius: 50%;
+  }
+
+  h1 {
+    position: relative;
+    z-index: 1;
+    margin: 80px 0 @spacing-md;
+    font-size: 30px;
+    line-height: 1.28;
+    font-weight: 700;
+  }
+
+  p {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    color: fade(@color-bg-base, 82%);
+    font-size: @font-size-md;
+    line-height: 1.8;
+  }
+}
+
+.authCapabilityList {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 12px;
+    color: fade(@color-bg-base, 90%);
+    background:
+      linear-gradient(180deg, fade(@color-bg-base, 16%), fade(@color-bg-base, 9%));
+    border: 1px solid fade(@color-bg-base, 22%);
+    border-radius: 999px;
+    font-size: @font-size-sm;
+    font-weight: 500;
+    line-height: 1;
+    box-shadow: inset 0 1px 0 fade(@color-bg-base, 18%);
+
+    i {
+      width: 6px;
+      height: 6px;
+      background: fade(@color-bg-base, 88%);
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px fade(@color-bg-base, 10%);
+    }
+
+    &:nth-child(2) i {
+      opacity: 0.8;
+    }
+
+    &:nth-child(3) i {
+      opacity: 0.66;
+    }
+  }
+}
+
+.authMonitorScene {
+  position: absolute;
+  right: 42px;
+  bottom: 34px;
+  width: 188px;
+  height: 188px;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0.42;
+  background:
+    radial-gradient(circle, fade(@color-bg-base, 22%) 0 8px, transparent 9px),
+    repeating-radial-gradient(circle, fade(@color-bg-base, 20%) 0 1px, transparent 2px 34px);
+  border: 1px solid fade(@color-bg-base, 18%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 34px fade(@color-bg-base, 12%), 0 0 44px fade(@color-bg-base, 8%);
+}
+
+.monitorRadarSweep {
+  position: absolute;
+  left: 94px;
+  top: 94px;
+  width: 94px;
+  height: 94px;
+  background: linear-gradient(38deg, fade(@color-bg-base, 62%), transparent 68%);
+  transform-origin: left top;
+  animation: monitorRadarSweep 2.8s linear infinite;
+}
+
+.monitorRadarCore {
+  position: absolute;
+  left: 82px;
+  top: 82px;
+  width: 24px;
+  height: 24px;
+  background: fade(@color-bg-base, 72%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 10px fade(@color-bg-base, 10%);
+}
+
+.monitorRadarDot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: fade(@color-bg-base, 92%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px fade(@color-bg-base, 12%);
+  animation: monitorDot 2.8s ease-in-out infinite;
+}
+
+.monitorRadarDotOne {
+  left: 48px;
+  top: 58px;
+}
+
+.monitorRadarDotTwo {
+  right: 42px;
+  top: 72px;
+  animation-delay: 0.4s;
+}
+
+.monitorRadarDotThree {
+  left: 94px;
+  bottom: 46px;
+  animation-delay: 0.8s;
+}
+
+.authLogoRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: @spacing-xl;
+
+  img {
+    width: 132px;
+    filter: brightness(0) invert(1);
+  }
+
+  span {
+    padding-left: @spacing-xl;
+    color: fade(@color-bg-base, 92%);
+    border-left: 1px solid fade(@color-bg-base, 38%);
+    font-size: @font-size-lg;
+    font-weight: 600;
+  }
+}
+
+.authCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 44px 48px;
+  background: @color-bg-base;
+}
+
+.authCardHeader {
+  display: flex;
+  align-items: center;
+  gap: @spacing-md;
+  margin-bottom: 28px;
+
+  h2 {
+    margin: 0 0 4px;
+    color: @color-text-heading;
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+    color: @color-text-tertiary;
+    font-size: @font-size-base;
+  }
+
+}
+
+.authTokenTip {
+  display: flex;
+  align-items: center;
+  gap: @spacing-sm;
+  flex-wrap: wrap;
+
+  code {
+    padding: 2px 6px;
+    color: @color-primary;
+    background: @color-primary-bg;
+    border: 1px solid fade(@color-primary, 18%);
+    border-radius: @radius-sm;
+    font-family: @font-family-base;
+    font-size: @font-size-sm;
+    line-height: 18px;
+  }
+}
+
+.authIcon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: @color-primary;
+  background: @color-primary-bg;
+  border: 1px solid fade(@color-primary, 16%);
+  border-radius: @radius-lg;
+  font-size: 18px;
+}
+
+// 只给密码管理器看的 username 字段：不能用 display:none / hidden
+// （那样部分浏览器会把它从表单解析里剔除），改为留在渲染树里但不可见、不可点。
+.authHiddenUser {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.authTokenInput {
+  margin-bottom: @spacing-lg;
+
+  &.ant-input-affix-wrapper {
+    height: 42px;
+    border-radius: @radius-md;
+  }
+
+  .ant-input-prefix {
+    color: @color-text-muted;
+    margin-right: @spacing-sm;
+  }
+}
+
+.authHint {
+  margin-top: @spacing-md;
+  color: @color-text-tertiary;
+  font-size: @font-size-sm;
+  line-height: 1.6;
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .authPage {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+    padding: 64px 24px 24px;
+  }
+
+  .authShell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: auto;
+  }
+
+  .authBrandPanel {
+    min-height: 260px;
+    padding: 36px;
+
+    h1 {
+      margin-top: 42px;
+      font-size: 24px;
+    }
+  }
+
+  .authCard {
+    padding: 36px;
+  }
+}
+
+@keyframes monitorRadarSweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes monitorDot {
+  0%, 100% {
+    opacity: 0.62;
+    transform: scale(1);
+  }
+  48% {
+    opacity: 1;
+    transform: scale(1.22);
+  }
+}

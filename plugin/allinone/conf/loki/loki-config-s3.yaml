@@ -1,0 +1,45 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  path_prefix: /data/mdis/loki
+  storage:
+    s3:
+      endpoint: ${ENV_S3_ENDPOINT}
+      bucketnames: ${ENV_S3_BUCKET}
+      access_key_id: ${ENV_S3_ACCESS_KEY}
+      secret_access_key: ${ENV_S3_SECRET_KEY}
+      s3forcepathstyle: ${ENV_S3_FORCE_PATH_STYLE}
+      insecure: true
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2026-01-01
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+compactor:
+  working_directory: /data/mdis/loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  delete_request_store: s3
+  delete_request_cancel_period: 5m
+
+limits_config:
+  allow_structured_metadata: true
+  retention_period: ${ENV_LOKI_RETENTION}
+  deletion_mode: filter-and-delete
+
+query_range:
+  cache_results: true

@@ -1,0 +1,144 @@
+# incluster：ops-prometheus 作为 Pod 跑在被监控 k8s 内，
+# 用 ServiceAccount + kubernetes_sd_configs 自动发现并抓取 kubelet/cadvisor/kube-state-metrics/pods。
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ops-prometheus
+  namespace: mdis-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mdis-monitoring-prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mdis-monitoring-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mdis-monitoring-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: ops-prometheus
+    namespace: mdis-monitoring
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops-prometheus
+  namespace: mdis-monitoring
+  labels:
+    app.kubernetes.io/name: ops-prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ops-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ops-prometheus
+    spec:
+      serviceAccountName: ops-prometheus
+      containers:
+        - name: ops-prometheus
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: prometheus
+            - name: ENV_K8S_MONITOR_MODE
+              value: "incluster"
+            - name: ENV_K8S_KSM_NAMESPACE
+              value: "mdis-monitoring"
+            # 本清单是「采集组件」形态：指标靠下面的 remote_write 推回主平台，本地 TSDB
+            # 只当出站中断时的缓冲，不是查询入口（查询在主平台）。所以保留期取 2d 就够。
+            # ⚠️ 别改回 15d：本地 TSDB 落在 emptyDir 上（见下方 volumes），15d 按 K8s 集群
+            #    指标的量级会涨到 10GB 以上，撑爆 emptyDir 后 kubelet 直接驱逐整个 Pod。
+            #    local_50 上 1.5.7 时期就因此被驱逐 102 次（7-12 一天 44 次）。
+            - name: ENV_PROMETHEUS_RETENTION
+              value: "2d"
+            # ↓↓ 作为「采集组件」把 K8s 指标推回主平台时，下面三项都要改 ↓↓
+            # 适用于：平台主体不在本集群内，或用一个平台监控多个 K8s 集群。
+            # 这条路只要求本集群能出站访问主平台，无需对外暴露 apiserver / kubelet / ksm。
+            #
+            # ⚠️ 平台就装在本集群内的话，整个 k8s-addons 都不用装 —— 平台自带的
+            #    Prometheus 直接采本集群（见 ops.yaml / k8s-cluster/ 的 ENV_K8S_MONITOR_MODE）。
+            #
+            # 地址 = 平台网关地址 + 子路径 + /prometheus/server/api/v1/write
+            #   · 网关地址：K8s 部署取 ops-gateway 的 NodePort（默认 30881），单机取 48881
+            #   · 子路径：平台的 ENV_OPS_SUB_PATH，默认 /mdis
+            # ⚠️ 平台的 ops-prometheus 是 ClusterIP，集群外连不上，别直接写 :9090。
+            # ⚠️ 必须带 /prometheus/server/ 这一段：平台 Prometheus 跑在
+            #    --web.external-url=/prometheus/server/ 下，少了会 404，而 Prometheus
+            #    只在自己日志里重试、面板上只表现为「没数据」，很难查。
+            - name: ENV_PROMETHEUS_REMOTE_WRITE_URL
+              value: "http://<主平台地址>:30881/mdis/prometheus/server/api/v1/write"
+            # 网关那条写入入口用 Bearer 鉴权，填平台的 ENV_OPS_TOKEN。不填必然 401。
+            - name: ENV_PROMETHEUS_REMOTE_WRITE_TOKEN
+              value: "<平台的 ENV_OPS_TOKEN>"
+            # 集群标识，作为 origin_prometheus 标签随指标推出去，K8s 面板顶部按它切换集群。
+            # 多集群务必各起各的名字（prod-k8s / test-k8s），别用 IP——面板下拉里要认得出。
+            - name: ENV_K8S_CLUSTER_NAME
+              value: "prod-k8s"
+          ports:
+            - name: web
+              containerPort: 9090
+          volumeMounts:
+            # TSDB 路径由 roles/prometheus.sh 写死为 /data/mdis/prometheus。
+            # 不挂这个卷的话 TSDB 就落在容器可写层（= 节点的 ephemeral-storage），
+            # 而 ephemeral-storage 的 request 又是 0 —— 在 kubelet 眼里「用了一点就算超额」，
+            # 节点磁盘一紧它排在驱逐队列最前面，数据连同 Pod 一起没。
+            - name: tsdb
+              mountPath: /data/mdis/prometheus
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+              # 声明 ephemeral-storage 才能被 kubelet 的驱逐排序保护；配额与下面
+              # emptyDir 的 sizeLimit 对齐。
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+              ephemeral-storage: 5Gi
+      volumes:
+        # 采集组件的本地 TSDB 是可丢的缓冲（真数据已 remote_write 到主平台），
+        # 用 emptyDir 即可，不要求集群有 StorageClass。sizeLimit 到顶时只有这个卷被清，
+        # 不会牵连整个节点。要长期本地留存请改用 PVC（参考 k8s-cluster/30-stateful.yaml）。
+        - name: tsdb
+          emptyDir:
+            sizeLimit: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-prometheus
+  namespace: mdis-monitoring
+  labels:
+    app.kubernetes.io/name: ops-prometheus
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: ops-prometheus
+  ports:
+    - name: web
+      port: 9090
+      targetPort: 9090
+      nodePort: 30090

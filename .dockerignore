@@ -1,0 +1,11 @@
+.git
+**/.DS_Store
+**/node_modules
+**/dist
+**/__pycache__
+**/ops-server
+server/mdis-server
+plugin/allinone/gateway/runtime/ops
+plugin/allinone/k8s-cluster/10-secret.yaml
+**/.env
+**/.env.*

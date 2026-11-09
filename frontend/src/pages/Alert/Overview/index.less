@@ -1,0 +1,716 @@
+.overviewLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 260px;
+}
+
+.alertOverviewContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 0 24px;
+
+  .ovHeader {
+    min-height: 36px;
+    margin-bottom: 0;
+
+    .ovHeaderRight {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .ovSubtitle {
+      color: @color-text-muted;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .ovSubDivider {
+      margin: 0 8px;
+      color: @color-text-disabled;
+    }
+
+    .ovRefreshBtn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 34px;
+      padding: 0 14px;
+      color: @color-text-secondary;
+      font-size: 13px;
+      font-weight: 500;
+      background: @color-bg-base;
+      border: 1px solid @color-border-light;
+      border-radius: @radius-md;
+      box-shadow: @shadow-sm;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover:not(:disabled) {
+        color: @color-primary;
+        border-color: @color-primary-light;
+        background: @color-primary-bg;
+      }
+
+      &:disabled {
+        opacity: 0.58;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .overviewTopGrid {
+    display: grid;
+    grid-template-columns: minmax(260px, 1.6fr) repeat(4, minmax(150px, 1fr));
+    gap: 14px;
+
+    @media (max-width: 1360px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .healthHeroCard {
+    position: relative;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 24px 28px;
+    overflow: hidden;
+    color: #fff;
+    background:
+      radial-gradient(circle at 22% 18%, rgba(82, 184, 255, 0.48) 0, transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(22, 119, 255, 0.42) 0, transparent 32%),
+      linear-gradient(135deg, #0b2b68 0%, #0c3f90 54%, #0f57bd 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: -52px;
+      bottom: -88px;
+      width: 220px;
+      height: 220px;
+      border: 32px solid rgba(120, 183, 255, 0.13);
+      border-radius: 50%;
+    }
+
+    &--warning {
+      background:
+        radial-gradient(circle at 22% 18%, rgba(255, 196, 97, 0.28) 0, transparent 34%),
+        linear-gradient(135deg, #17345d 0%, #12396f 48%, #3c3a6f 100%);
+    }
+
+    &--danger {
+      background:
+        radial-gradient(circle at 22% 18%, rgba(255, 112, 112, 0.24) 0, transparent 34%),
+        linear-gradient(135deg, #172b58 0%, #26305d 46%, #62304a 100%);
+    }
+
+    &__meta {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+
+      div {
+        margin-bottom: 8px;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      span {
+        display: inline-flex;
+        align-items: center;
+        height: 26px;
+        margin-bottom: 10px;
+        padding: 0 12px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        background: rgba(0, 168, 112, 0.9);
+        border-radius: 4px;
+      }
+
+      p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .healthRingChart {
+    position: relative;
+    z-index: 1;
+    width: 118px;
+    height: 118px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+
+    svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    circle {
+      fill: none;
+      stroke-width: 14;
+    }
+
+    &__track {
+      stroke: rgba(148, 183, 235, 0.34);
+    }
+
+    &__glow {
+      stroke: rgba(95, 173, 255, 0.2);
+      stroke-width: 21;
+      stroke-dasharray: calc(var(--health-rate) * 2.827) 282.7;
+      filter: drop-shadow(0 0 10px rgba(87, 166, 255, 0.42));
+    }
+
+    &__bar {
+      stroke: #64a8ff;
+      stroke-dasharray: calc(var(--health-rate) * 2.827) 282.7;
+      stroke-linecap: round;
+    }
+
+    &__value {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: baseline;
+      color: #fff;
+    }
+
+    strong {
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    em {
+      margin-left: 2px;
+      font-size: 14px;
+      font-style: normal;
+    }
+  }
+
+  .ovKpiCard {
+    position: relative;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 24px;
+    background:
+      radial-gradient(circle at 18% 18%, fade(@color-primary, 10%) 0, transparent 30%),
+      @color-bg-base;
+    border: 1px solid @color-border-light;
+    border-radius: 8px;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+
+    &__icon {
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: @color-primary;
+      font-size: 18px;
+      background: fade(@color-primary, 13%);
+      border-radius: 50%;
+    }
+
+    &__label {
+      display: block;
+      color: @color-text-tertiary;
+      font-size: 13px;
+    }
+
+    strong {
+      display: block;
+      margin-top: 8px;
+      color: @color-text-heading;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    &--ok {
+      background:
+        radial-gradient(circle at 18% 18%, rgba(52, 211, 153, 0.18) 0, transparent 30%),
+        @color-bg-base;
+
+      .ovKpiCard__icon {
+        color: #10b981;
+        background: rgba(110, 231, 183, 0.18);
+      }
+
+      strong {
+        color: #22c55e;
+      }
+    }
+
+    &--danger {
+      background:
+        radial-gradient(circle at 18% 18%, fade(@color-error, 12%) 0, transparent 30%),
+        @color-bg-base;
+
+      .ovKpiCard__icon {
+        color: @color-error;
+        background: fade(@color-error, 10%);
+      }
+
+      strong {
+        color: @color-error;
+      }
+    }
+
+    &--warning {
+      background:
+        radial-gradient(circle at 18% 18%, fade(@color-warning, 15%) 0, transparent 30%),
+        @color-bg-base;
+
+      .ovKpiCard__icon {
+        color: @color-warning;
+        background: fade(@color-warning, 15%);
+      }
+    }
+  }
+
+  .overviewMainGrid,
+  .overviewSecondaryGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+
+    @media (max-width: 1200px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .dashboardPanel {
+    min-height: 278px;
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, fade(@color-primary, 3%) 0, transparent 32%),
+      @color-bg-base;
+    border: 1px solid @color-border-light;
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+
+    &--danger {
+      background:
+        linear-gradient(180deg, fade(@color-error, 5%) 0, transparent 30%),
+        @color-bg-base;
+    }
+
+    &__header {
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 18px;
+      background: linear-gradient(90deg, fade(@color-primary, 4%), transparent);
+      border-bottom: 1px solid @color-border-light;
+    }
+
+    &__title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+
+      span {
+        color: @color-primary;
+      }
+
+      strong {
+        overflow: hidden;
+        color: @color-text-heading;
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      em {
+        color: @color-text-disabled;
+        font-size: 12px;
+        font-style: normal;
+        white-space: nowrap;
+      }
+    }
+
+    &__badge {
+      min-width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: @color-error;
+      font-size: 12px;
+      font-style: normal;
+      background: fade(@color-error, 9%);
+      border: 1px solid fade(@color-error, 14%);
+      border-radius: 5px;
+    }
+
+    &__action,
+    .panelLinkBtn {
+      flex-shrink: 0;
+      color: @color-primary;
+      font-size: 12px;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    &__body {
+      padding: 16px 18px;
+    }
+  }
+
+  .ovPanelEmpty {
+    height: 198px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: @color-text-disabled;
+    font-size: 13px;
+  }
+
+  .activeAlertItem,
+  .resourceStatusItem {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .activeAlertItem {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 0;
+
+    & + .activeAlertItem {
+      border-top: 1px solid @color-border-light;
+    }
+
+    &__level {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: @color-warning;
+      font-size: 13px;
+      font-weight: 700;
+      background: fade(@color-warning, 13%);
+      border-radius: 5px;
+      letter-spacing: 0;
+      white-space: nowrap;
+
+      &--high {
+        color: @color-error;
+        background: fade(@color-error, 9%);
+      }
+    }
+
+    &__info {
+      min-width: 0;
+
+      strong,
+      em {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      strong {
+        color: @color-text-heading;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      em {
+        margin-top: 2px;
+        color: @color-text-muted;
+        font-size: 12px;
+        font-style: normal;
+      }
+    }
+
+    &__time {
+      color: @color-text-muted;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+  }
+
+  .panelLinkBtn {
+    margin-top: 10px;
+    padding: 0;
+  }
+
+  .trendChart {
+    height: 214px;
+
+    &__legend {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 12px;
+      color: @color-text-secondary;
+      font-size: 12px;
+
+      span::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-right: 7px;
+        border-radius: 50%;
+        vertical-align: middle;
+      }
+
+      .isFire::before {
+        background: @color-error;
+      }
+
+      .isOk::before {
+        background: #6ee7b7;
+      }
+    }
+
+    svg {
+      width: 100%;
+      height: 150px;
+
+      line {
+        stroke: @color-border-light;
+        stroke-width: 1;
+      }
+
+      polyline {
+        fill: none;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    }
+
+    &__fire {
+      stroke: @color-error;
+    }
+
+    &__ok {
+      stroke: #6ee7b7;
+    }
+
+    &__empty {
+      margin-top: -96px;
+      height: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: @color-text-disabled;
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    &__axis {
+      display: flex;
+      justify-content: space-between;
+      color: @color-text-disabled;
+      font-size: 11px;
+    }
+  }
+
+  .resourceStatusList {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  .opsUnifiedIcon {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: @color-primary;
+    font-size: 16px;
+    background: linear-gradient(135deg, fade(@color-primary, 16%), fade(@color-primary, 8%));
+    border: 1px solid fade(@color-primary, 18%);
+    border-radius: 6px;
+
+    .sourceTypeLogo {
+      width: 22px;
+      height: 22px;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+    }
+  }
+
+  .resourceStatusItem {
+    display: grid;
+    grid-template-columns: 30px minmax(120px, 1fr) 68px minmax(120px, 180px) 42px;
+    align-items: center;
+    gap: 10px;
+
+    &__name {
+      overflow: hidden;
+      color: @color-text-heading;
+      font-size: 13px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__state {
+      color: #22c55e;
+      font-size: 12px;
+      white-space: nowrap;
+
+      &.isAlert {
+        color: @color-error;
+      }
+
+      // 预警（Pending）独占橙色——3 色纪律里橙只给这一档，不与「告警=红」混用
+      &.isPending {
+        color: @color-warning;
+      }
+
+      // 这一类一条启用中的规则都没有：不是「正常」，是「没在看」
+      &.isIdle {
+        color: @color-text-muted;
+      }
+    }
+
+    &__bar {
+      height: 5px;
+      overflow: hidden;
+      background: @color-bg-muted;
+      border-radius: 999px;
+
+      i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #86efac, #22c55e);
+        border-radius: inherit;
+      }
+    }
+
+    &__rate {
+      color: @color-text-muted;
+      font-size: 12px;
+      text-align: right;
+    }
+  }
+
+  .sourceSummaryGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+
+    @media (max-width: 1280px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .sourceSummaryItem {
+    display: grid;
+    grid-template-columns: 50px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    min-height: 75px;
+    padding: 12px;
+    border: 1px solid @color-border-light;
+    border-radius: 6px;
+    background: linear-gradient(135deg, fade(@color-primary, 3%), @color-bg-base 58%);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+
+    &:hover {
+      border-color: fade(@color-primary, 32%);
+      box-shadow: 0 8px 20px rgba(22, 119, 255, 0.1);
+      transform: translateY(-1px);
+    }
+
+    &__content {
+      display: block;
+      min-width: 0;
+    }
+
+    &__label {
+      display: block;
+      overflow: hidden;
+      color: @color-text-secondary;
+      font-size: 12px;
+      line-height: 18px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      display: block;
+      margin-top: 4px;
+      color: @color-text-heading;
+      font-size: 22px;
+      line-height: 24px;
+    }
+  }
+
+  .sourceSummaryItem .opsUnifiedIcon {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+
+    .sourceTypeLogo {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+}
+
+@keyframes ovHealthWave {
+  0% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+
+  100% {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+@keyframes ovHealthWaveReverse {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(-360deg);
+  }
+}

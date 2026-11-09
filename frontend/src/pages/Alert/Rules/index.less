@@ -1,0 +1,31 @@
+.alertRulesTabsContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .opsPageHeader {
+    margin-bottom: 0;
+  }
+
+  .ant-tabs {
+    flex: 1;
+    min-height: 0;
+  }
+
+  > .ant-tabs > .ant-tabs-nav {
+    margin-bottom: @spacing-sm;
+  }
+
+  .portMonitorContainer,
+  .sslMonitorContainer,
+  .mysqlMonitorContainer,
+  .mongoMonitorContainer,
+  .kafkaLagContainer,
+  .kafkaRebalanceContainer {
+    margin-top: 0;
+  }
+
+  .ant-tabs-content-holder {
+    overflow: auto;
+  }
+}

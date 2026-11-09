@@ -1,0 +1,119 @@
+# 三套 ServiceAccount：
+#   ops-prometheus — incluster 模式自动发现 kubelet/cadvisor/ksm/pods
+#   ops-ksm        — kube-state-metrics 读集群对象状态
+#   alloy-logs     — 经 kube API 读 pod 日志
+#
+# 都是只读权限（get/list/watch），不含任何写操作。
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ops-prometheus
+  namespace: hap-ops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hap-ops-prometheus
+rules:
+  - apiGroups: [""]
+    resources: [nodes, nodes/proxy, nodes/metrics, services, endpoints, pods]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hap-ops-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hap-ops-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: ops-prometheus
+    namespace: hap-ops
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ops-ksm
+  namespace: hap-ops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hap-ops-ksm
+rules:
+  - apiGroups: [""]
+    resources:
+      [configmaps, secrets, nodes, pods, services, resourcequotas,
+       replicationcontrollers, limitranges, persistentvolumeclaims,
+       persistentvolumes, namespaces, endpoints]
+    verbs: [list, watch]
+  - apiGroups: [apps]
+    resources: [statefulsets, daemonsets, deployments, replicasets]
+    verbs: [list, watch]
+  - apiGroups: [batch]
+    resources: [cronjobs, jobs]
+    verbs: [list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [list, watch]
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [list, watch]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses, volumeattachments]
+    verbs: [list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies, ingresses]
+    verbs: [list, watch]
+  - apiGroups: [certificates.k8s.io]
+    resources: [certificatesigningrequests]
+    verbs: [list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hap-ops-ksm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hap-ops-ksm
+subjects:
+  - kind: ServiceAccount
+    name: ops-ksm
+    namespace: hap-ops
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy-logs
+  namespace: hap-ops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mdis-alloy-logs
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, nodes, namespaces]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mdis-alloy-logs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mdis-alloy-logs
+subjects:
+  - kind: ServiceAccount
+    name: alloy-logs
+    namespace: hap-ops

@@ -1,0 +1,59 @@
+.dataSourcesContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .dsToolbar {
+    margin-bottom: @spacing-lg;
+  }
+
+  .dsTableBox {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .sourceTypeLabel {
+    max-width: 100%;
+  }
+
+  .dsPurposeTags {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+
+    .ant-tag {
+      flex: 0 0 auto;
+      margin-inline-end: 0;
+    }
+  }
+
+  .dsConnSummary {
+    font-family: monospace;
+    font-size: 12px;
+    color: @color-text-secondary;
+  }
+
+  .dsEmpty {
+    color: @color-text-disabled;
+  }
+
+  // .primaryTextBtn is a global class in basic.less
+  .dangerTextBtn {
+    color: @color-error;
+    cursor: pointer;
+    font-size: 13px;
+
+    &:hover {
+      color: @color-error-strong;
+    }
+  }
+
+  .divider {
+    display: inline-block;
+    margin: 0 8px;
+    color: @color-border;
+    font-size: 12px;
+  }
+}

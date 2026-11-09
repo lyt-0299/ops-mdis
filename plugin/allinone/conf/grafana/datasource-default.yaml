@@ -1,0 +1,34 @@
+apiVersion: 1
+datasources:
+- name: DS_PROMETHEUS
+  uid: DS_PROMETHEUS
+  type: prometheus
+  url: http://ops-prometheus:9090/prometheus/server/
+  access: proxy
+  isDefault: true
+- name: DS_LOKI
+  uid: DS_LOKI
+  type: loki
+  url: http://ops-loki:3100
+  access: proxy
+- name: DS_TEMPO
+  uid: DS_TEMPO
+  type: tempo
+  url: http://ops-tempo:3200
+  access: proxy
+  jsonData:
+    httpMethod: GET
+    grpcAddress: "ops-tempo:9096"
+    streamingEnabled:
+      search: false
+      metrics: true
+    tracesToLogsV2:
+      datasourceUid: DS_LOKI
+      filterByTraceID: true
+      filterBySpanID: false
+    tracesToMetrics:
+      datasourceUid: DS_PROMETHEUS
+    serviceMap:
+      datasourceUid: DS_PROMETHEUS
+    nodeGraph:
+      enabled: true

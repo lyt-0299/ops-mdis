@@ -1,0 +1,193 @@
+# Alloy 日志采集 DaemonSet：采集被监控 k8s 集群所有 pod 的容器日志(stdout)，推送到 ops-loki。
+# 补齐 1.3.0 集群容器日志收集（ops-alloy 只采单机 docker stdout，看不到 k8s/containerd pod）。
+# - discovery.kubernetes 发现 pod，loki.source.kubernetes 经 kube API 读日志（无需 hostPath / 路径拼接）
+# - 打 namespace/pod/container/node/app/log_source=k8s 标签
+# - 推到 ops-loki：ENV_LOKI_PUSH_URL（默认按平台装在本集群内给出，见下方 env 注释）
+# apply 后在 Grafana「服务日志/容器控制台」用 {log_source="k8s"} 或 {namespace="default"} 查
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy-logs
+  namespace: mdis-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy-logs
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy-logs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy-logs
+subjects:
+  - kind: ServiceAccount
+    name: alloy-logs
+    namespace: mdis-monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-logs
+  namespace: mdis-monitoring
+data:
+  config.alloy: |
+    // 发现集群内所有 pod（DaemonSet 每节点一个实例，下面按本节点过滤）
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    // 只采当前节点的 pod + 打标签
+    discovery.relabel "pod_logs" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        regex         = env("NODE_NAME")
+        action        = "keep"
+      }
+      // 排除 ops 监控栈自身的 pod。单机 Compose 形态早在 1.2.4 就按 compose service 名
+      // drop 了同一批容器(见 conf/alloy/docker-logs.alloy)，K8s 形态一直漏做：客户环境
+      // 实测最近 5 分钟 3813 条容器日志里 2999 条来自 ops-gateway、且 100% 是同一句
+      // 「Processed Info: []」，单这一个 pod 就占约 75%；ops-loki 采自己的日志还构成
+      // 自反馈环。两个 label 都判：本仓库清单里 app 与 app.kubernetes.io/name 两种写法都有。
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        regex         = "ops-.*|alloy-logs|kube-state-metrics|node-exporter"
+        action        = "drop"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        regex         = "ops-.*|alloy-logs|kube-state-metrics|node-exporter"
+        action        = "drop"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label  = "node"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+      }
+      rule {
+        target_label = "log_source"
+        replacement  = "k8s"
+      }
+    }
+
+    // 经 kube API 读取 pod 日志
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pod_logs.output
+      forward_to = [loki.write.default.receiver]
+    }
+
+    // 推送到 ops-loki
+    loki.write "default" {
+      endpoint {
+        url = env("ENV_LOKI_PUSH_URL")
+        // 跨集群经平台网关推送时必填（网关那条写入入口用 Bearer 鉴权）；
+        // 集群内直连 ops-loki 时留空即可，空值等同于不带鉴权头。
+        bearer_token = env("ENV_LOKI_PUSH_TOKEN")
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy-logs
+  namespace: mdis-monitoring
+  labels:
+    app.kubernetes.io/name: alloy-logs
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alloy-logs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alloy-logs
+    spec:
+      serviceAccountName: alloy-logs
+      tolerations:
+        - operator: Exists   # 覆盖控制面/污点节点
+      containers:
+        - name: alloy
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          # k8s 日志采集用专门的 ConfigMap 配置(异于 docker 的 config.alloy),
+          # 故覆盖入口直跑 alloy 二进制,不走 ROLE 分发。
+          command: ["/usr/local/bin/alloy"]
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/tmp/alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # ⚠️ 这两项必须按你的实际部署改，不改一条日志都进不去。
+            #    填错不报错，表现只有「容器控制台面板一直空着」。
+            #
+            # 【平台在本集群内】直连 ops-loki 的 Service DNS，把下面的 <平台所在命名空间>
+            #   换成平台实际的 namespace（默认清单是 hap-ops，实际部署常改名），
+            #   TOKEN 那项留空即可：
+            #     http://ops-loki.<平台所在命名空间>.svc.cluster.local:3100/loki/api/v1/push
+            #
+            # 【平台在别的集群】ops-loki 是 ClusterIP，跨集群连不上，必须走平台网关，
+            #   并填 TOKEN（网关那条写入入口用 Bearer 鉴权，不填返回 401）：
+            #     http://<平台地址>:30881/mdis/loki/api/v1/push
+            #   其中 30881 是 ops-gateway 的 NodePort，/mdis 是平台的 ENV_OPS_SUB_PATH。
+            - name: ENV_LOKI_PUSH_URL
+              value: "http://ops-loki.<平台所在命名空间>.svc.cluster.local:3100/loki/api/v1/push"
+            # 仅「走平台网关」时需要，填平台的 ENV_OPS_TOKEN；集群内直连留空。
+            - name: ENV_LOKI_PUSH_TOKEN
+              value: ""
+          ports:
+            - name: http
+              containerPort: 12345
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+              # --storage.path 的 WAL 落在 ephemeral-storage 上。量比 Prometheus 的 TSDB
+              # 小一个量级（正常几十 MB，只是发送队列），但 request 不声明的话驱逐排序里
+              # 一样算「超额」，节点磁盘紧时会跟着被清掉。
+              ephemeral-storage: 200Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 2Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: wal
+              mountPath: /tmp/alloy
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-logs
+        # WAL 是可丢的发送缓冲，emptyDir 即可；给 sizeLimit 是为了 Loki 长时间不可达、
+        # 队列一直堆积时只清这个卷，而不是把整个 Pod 驱逐掉。
+        - name: wal
+          emptyDir:
+            sizeLimit: 2Gi

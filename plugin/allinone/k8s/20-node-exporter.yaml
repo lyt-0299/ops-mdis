@@ -1,0 +1,67 @@
+# node_exporter DaemonSet：采集每个节点的主机资源指标，复用 ops-nodeagent 镜像（监听 :59100）
+# 可选：incluster 下节点/容器指标已由 kubelet+cadvisor 覆盖，本文件仅在需要
+# node_exporter 的细粒度主机指标时 apply
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: mdis-monitoring
+  labels:
+    app.kubernetes.io/name: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: node-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: node-exporter
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists   # 覆盖控制面/污点节点
+      containers:
+        - name: node-exporter
+          image: registry.cn-hangzhou.aliyuncs.com/mdpublic/ops-allinone:1.5.12
+          env:
+            - name: ROLE
+              value: nodeagent
+          ports:
+            - name: metrics
+              containerPort: 59100
+              hostPort: 59100
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: rootfs
+              mountPath: /host
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: rootfs
+          hostPath:
+            path: /
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: mdis-monitoring
+  labels:
+    app.kubernetes.io/name: node-exporter
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: node-exporter
+  ports:
+    - name: metrics
+      port: 59100
+      targetPort: 59100
+      nodePort: 30081

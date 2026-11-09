@@ -1,0 +1,70 @@
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9096
+  log_level: warn
+
+memberlist:
+  abort_if_cluster_join_fails: false
+  bind_addr: ["0.0.0.0"]
+  bind_port: 7946
+  join_members: []
+  advertise_addr: __ADVERTISE_ADDR__
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: ${ENV_TEMPO_RETENTION}
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: docker-compose
+  storage:
+    path: /data/mdis/tempo/generator/wal
+    remote_write:
+      - url: http://ops-prometheus:9090/prometheus/server/api/v1/write
+        send_exemplars: true
+  traces_storage:
+    path: /data/mdis/tempo/generator/traces
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /data/mdis/tempo/traces
+    wal:
+      path: /data/mdis/tempo/wal
+    pool:
+      max_workers: 100
+      queue_depth: 10000
+
+query_frontend:
+  search:
+    duration_slo: 5s
+    throughput_bytes_slo: 1.073741824e+09
+  trace_by_id:
+    duration_slo: 5s
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics, local-blocks]
+      generate_native_histograms: both
+      processor:
+        span_metrics:
+          dimensions:
+            - http.status_code
