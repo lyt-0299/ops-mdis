@@ -17,7 +17,9 @@ RUN yarn install --frozen-lockfile --non-interactive
 COPY frontend/ ./
 RUN yarn build
 
-FROM docker.io/library/golang:1.25-bookworm AS build-backend
+FROM docker.io/library/golang:1.25-bookworm AS go-toolchain
+
+FROM go-toolchain AS build-backend
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
 RUN go mod download
@@ -32,11 +34,18 @@ FROM docker.io/grafana/alloy:v1.11.3            AS src-alloy
 FROM docker.io/library/mongo:4.4.28             AS src-mongo
 FROM registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.1 AS src-ksm
 
+# Debian 基础镜像先借用 Go 镜像中的 CA 证书访问官方 HTTPS 软件源。
+# 保留 Debian 原有的 Signed-By、软件源套件与签名校验。
+FROM docker.io/library/debian:12.10 AS debian-base
+COPY --from=go-toolchain /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+RUN sed -i 's|^URIs: http://deb.debian.org/|URIs: https://deb.debian.org/|' /etc/apt/sources.list.d/debian.sources
+
 # ---------------- 下载阶段：prometheus / 各 exporter / node_exporter ----------------
-FROM docker.io/library/debian:12.10 AS src-download
+FROM debian-base AS src-download
 ARG PROM_VER NODE_EXPORTER_VER KAFKA_EXPORTER_VER ES_EXPORTER_VER REDIS_EXPORTER_VER MYSQL_EXPORTER_VER MONGODB_EXPORTER_VER
-RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update && apt-get install -y wget ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get -o Acquire::Retries=3 -o APT::Update::Error-Mode=any update \
+    && apt-get install -y wget ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /out/prometheus/server \
     && wget -q https://github.com/prometheus/prometheus/releases/download/v${PROM_VER}/prometheus-${PROM_VER}.linux-amd64.tar.gz \
     && tar -zxf prometheus-${PROM_VER}.linux-amd64.tar.gz --strip-components=1 -C /out/prometheus/server \
@@ -66,11 +75,10 @@ RUN mkdir -p /out/agent/kafka_exporter/logs /out/agent/elasticsearch_exporter/lo
     && rm -rf *_exporter-*
 
 # ==================== 最终镜像 ====================
-FROM docker.io/library/debian:12.10
+FROM debian-base
 ENV LANG=en_US.UTF-8
-RUN echo "en_US.UTF-8 UTF-8\nzh_CN.UTF-8 UTF-8" > /etc/locale.gen \
-    && sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update \
+RUN printf '%s\n' 'en_US.UTF-8 UTF-8' 'zh_CN.UTF-8 UTF-8' > /etc/locale.gen \
+    && apt-get -o Acquire::Retries=3 -o APT::Update::Error-Mode=any update \
     && apt-get install -y vim iproute2 dnsutils procps locales ca-certificates gettext jq curl libcurl4 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
