@@ -13,6 +13,9 @@ export GF_SERVER_ROOT_URL="${GF_SERVER_ROOT_URL:-%(protocol)s://%(domain)s:%(htt
 export GF_SERVER_SERVE_FROM_SUB_PATH="${GF_SERVER_SERVE_FROM_SUB_PATH:-true}"
 export GF_LIVE_ALLOWED_ORIGINS="${GF_LIVE_ALLOWED_ORIGINS:-*}"
 
+# Grafana 的默认界面语言，适用于匿名嵌入；部署可通过同名变量覆盖。
+export GF_USERS_DEFAULT_LANGUAGE="${GF_USERS_DEFAULT_LANGUAGE:-zh-Hans}"
+
 export GF_SMTP_ENABLED="${ENV_SMTP_ENABLED:-false}"
 export GF_SMTP_HOST="${ENV_SMTP_HOST:-localhost}:${ENV_SMTP_PORT:-25}"
 export GF_SMTP_USER="${ENV_SMTP_USER:-}"

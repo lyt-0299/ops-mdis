@@ -144,10 +144,11 @@ func initialMonitorDashboard(legacy []monitorPanel) map[string]any {
 				"options": map[string]any{
 					"excludeByName": map[string]bool{"__name__": true, "Time": true},
 					"indexByName":   map[string]int{"database": 0, "schema": 1, "instance": 2, "Value": 3},
+					"renameByName":  map[string]string{"database": "数据库", "schema": "库名", "instance": "实例", "Value": "值"},
 				},
 			}}
 			panel["options"] = map[string]any{
-				"sortBy": []any{map[string]any{"displayName": "Value", "desc": true}},
+				"sortBy": []any{map[string]any{"displayName": "值", "desc": true}},
 			}
 		}
 		panels = append(panels, panel)
@@ -155,7 +156,7 @@ func initialMonitorDashboard(legacy []monitorPanel) map[string]any {
 	return map[string]any{
 		"overwrite": false,
 		"dashboard": map[string]any{
-			"uid": monitorDashboardUID, "title": "MDIS Custom Monitoring", "editable": true,
+			"uid": monitorDashboardUID, "title": "MDIS 自定义监控", "editable": true,
 			"schemaVersion": 39, "panels": panels, "refresh": "30s",
 			"time": map[string]string{"from": "now-1h", "to": "now"},
 		},

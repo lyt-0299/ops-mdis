@@ -29,6 +29,7 @@ func TestEnsureMonitorDashboardMigratesLegacyPanelsOnce(t *testing.T) {
 				Overwrite bool `json:"overwrite"`
 				Dashboard struct {
 					UID      string `json:"uid"`
+					Title    string `json:"title"`
 					Editable bool   `json:"editable"`
 					Panels   []struct {
 						Type    string `json:"type"`
@@ -45,7 +46,7 @@ func TestEnsureMonitorDashboardMigratesLegacyPanelsOnce(t *testing.T) {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			if body.Overwrite || body.Dashboard.UID != monitorDashboardUID || !body.Dashboard.Editable {
+			if body.Overwrite || body.Dashboard.UID != monitorDashboardUID || body.Dashboard.Title != "MDIS 自定义监控" || !body.Dashboard.Editable {
 				t.Errorf("unexpected dashboard settings: %+v", body)
 			}
 			panels := body.Dashboard.Panels
